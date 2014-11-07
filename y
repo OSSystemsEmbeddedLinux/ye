@@ -21,12 +21,12 @@ Commands:
 f [-e] <expr>
 find [-e] <expr>
     Locate paths that match the given expression <expr>.  <expr> is
-    case insiensitive and implicitly surrounded by '*'.  -e disables
+    case insensitive and implicitly surrounded by '*'.  -e disables
     the implicit use of '*' around the given <expr>.
 
 r
 redisplay
-    Redisplay the lastest find results.
+    Redisplay the latest find results.
 
 v [<n> | <path> ]
 view [<n> | <path> ]
@@ -40,7 +40,7 @@ e [<n> | <path> ]
 edit [<n> | <path> ]
     Edit the file result of the last 'find' command.  If <n> or <path>
     is not provided, pick the first file.  If the EDITOR environment
-    variable is not set, it will use "emacs <file>.
+    variable is not set, it will use "emacs <file>".
     if the optional argument is not a number, but a a path relative to
     Yocto Project's root directory, open it.
 
