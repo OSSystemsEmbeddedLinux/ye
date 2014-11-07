@@ -254,7 +254,9 @@ view_cmd() {
 ### Edit
 ###
 do_edit() {
-    if [ -n "$EDITOR" ]; then
+    if [ -n "$YEDITOR" ]; then
+        "$YEDITOR" "$1"
+    elif [ -n "$EDITOR" ]; then
         "$EDITOR" "$1"
     else
         emacs "$1"
