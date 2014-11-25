@@ -45,6 +45,12 @@ find [-e] <expr>
     case insensitive and implicitly surrounded by '*'.  -e disables
     the implicit use of '*' around the given <expr>.
 
+sf [-e] <expr>
+sysroot-find [-e] <expr>
+    Locate paths that match the given expression <expr>.  <expr> is
+    case insensitive and implicitly surrounded by '*'.  -e disables
+    the implicit use of '*' around the given <expr>.
+
 r
 redisplay
     Redisplay the latest find results.
@@ -134,6 +140,33 @@ find_cmd() {
             results=`find $ysources -path "*$**"`
         else
             results=`find $ysources -iname "*$**"`
+        fi
+        if [ -n "$results" ]; then
+            echo "$results" > $yfind_tmp
+            grep -n --color=auto "$*" $yfind_tmp
+        fi
+    fi
+}
+
+sysroot_find_cmd() {
+    local sysroot
+    local results
+
+    if [ -z "$BUILDDIR" ]; then
+        echo "ERROR: Could not determine the Yocto Project's build directory." >&2
+        exit 1
+    fi
+
+    sysroot=$BUILDDIR/tmp/sysroots/
+
+    if [ "$1" = "-e" ]; then
+        shift
+        find $sysroot -name "$*"
+    else
+        if echo "$*" | grep -q /; then
+            results=`find $sysroot -path "*$**"`
+        else
+            results=`find $sysroot -iname "*$**"`
         fi
         if [ -n "$results" ]; then
             echo "$results" > $yfind_tmp
@@ -409,6 +442,10 @@ case $cmd in
     find | f)
         shift
         find_cmd "$@"
+        ;;
+    sysroot-find | sf)
+        shift
+        sysroot_find_cmd "$@"
         ;;
     redisplay | r)
         shift
