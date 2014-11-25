@@ -1,6 +1,27 @@
 #! /bin/sh
 # -*- shell-script -*-
 
+### TODO
+
+# g <args>
+# grep <args>
+#    Run 'repo grep <args>' under the current project.
+
+# ll <pkg>
+# loglist <pkg>
+#      Show the log files for <pkg>
+
+# l <pkg> <task expr>
+# log <pkg> <task expr>
+#    Show log.do_<task> for <task expr>
+
+# lr <pkg> <task expr>
+# logrun <pkg> <task expr>
+#    Show run.do_<task> for <task expr>
+
+# emacs fallback: zile, mg, vi
+
+
 # No concurrent execution support
 ytmp="/tmp/y.$USER"
 mkdir -p $ytmp
@@ -78,12 +99,6 @@ pkg-info
 
 EOF
 }
-
-## FIXME
-# g <args>
-# grep <args>
-#    Run 'repo grep <args>' under the current project.
-
 
 ###
 ### Find
