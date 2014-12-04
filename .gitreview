@@ -1,0 +1,5 @@
+[gerrit]
+host=code.ossystems.com.br
+port=29418
+project=apps/ye.git
+defaultbranch=master
