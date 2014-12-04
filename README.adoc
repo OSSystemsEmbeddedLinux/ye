@@ -1,0 +1,145 @@
+= ye (Yocto Explorer)
+
+== Introduction
+
+`ye` is a command line tool to ease the manipulation of files under
+the directory structure adopted by O.S. Systems to organize projects
+that use the Yocto Project.  `ye` provides means to quickly locate
+files and directories into projects' directory tree, and act on them.
+
+== Usage
+
+....
+$ ye -h
+Usage: ye <command> [ <options> ]
+
+f [-e] <regex>
+find [-e] <regex>
+    Locate paths that match the given expression <regex>.  <regex> is
+    case insensitive and implicitly surrounded by '.*'.  -e disables
+    the implicit use of '.*' around the given <regex>.  Note that,
+    unless <regex> contains /, matching is attempted on filenames only
+    (not on dirnames).  If <regex> contains /, matching is attempted
+    on the full path.
+
+sf [-e] <regex>
+sysroot-find [-e] <regex>
+    Locate paths that match the given expression <regex>.  <regex> is
+    case insensitive and implicitly surrounded by '.*'.  -e disables
+    the implicit use of '.*' around the given <regex>.   Note that,
+    unless <regex> contains /, matching is attempted on filenames only
+    (not on dirnames).  If <regex> contains /, matching is attempted
+    on the full path.
+
+pf [-e] <regex>
+pkg-find [-e] <regex>
+    Like 'find', but for packages.
+
+wd [-e] <regex>
+workdir [-e] <regex>
+    Locate the Yocto's workdir for <regex>.  <regex> is implicitly
+    surrounded by '.*', unless -e is provided.
+....
+
+
+All the operations performed by the toplevel commands (`find`,
+`sysroot-find`, `pkg-find` and `workdir`) are related to locating
+files and directories in the project's directory structure.
+
+Each command handles a special case:
+
+`find`:: Search for files in the directory where the source files are
+stored (`<yocto root dir>/sources`).
+
+`sysroot-find`:: Search for files in the sysroots directories
+(`$BUILDDIR/tmp/sysroots`).
+
+`pkg-find`:: Search for package files in the deploy directory for
+packages (`$BUILDDIR/tmp/deploy/<pkg format>`).
+
+`workdir`:: Search for recipes' work directories in the work directory
+(`$BUILDDIR/tmp/work`).
+
+
+All commands use a regular expression pattern (`<regex>`) as argument,
+which is matched against filenames only if they don't contain a slash
+(`/`) character.  If they contain a slash character, it means you
+probably want to search for a full or partial paths with at least one
+directory part.  In this case, `ye` will match the pattern agains the
+full file path.
+
+All commands accept a `-e` option, which indicates the search is to be
+_exact_.  Without this option `ye` will surround the provided pattern
+by `.*`, which means matching anything before and after the provided
+pattern (which will be matched against the filename or the full path,
+depending if the given pattern contains a slash or not).
+
+The matches will be highlighted in red on the output.
+
+Except for the `workdir` commands, all `ye` commands are interactive.
+After locating files that match the given pattern, `ye` will prompt
+you to select one of the matches and, next, what to do with it.
+
+Example:
+
+....
+$ ye f flex
+[0] /home/mario/yocto/sources/poky/meta/recipes-devtools/flex/flex.inc [0]
+[1] /home/mario/yocto/sources/poky/meta/recipes-devtools/flex/flex_2.5.35.bb [1]
+Option (ENTER to cancel): 1
+[0] View [0]
+[1] Edit [1]
+Option (ENTER to cancel): 0
+     1  require flex.inc
+     2  PR = "r3"
+     3  LICENSE="BSD"
+     4  LIC_FILES_CHKSUM = "file://COPYING;md5=e4742cf92e89040b39486a6219b68067"
+     5  BBCLASSEXTEND = "native nativesdk"
+     6  
+     7  SRC_URI += "file://avoid-FORTIFY-warnings.patch \
+     8              file://int-is-not-the-same-size-as-size_t.patch"
+     9  
+    10  SRC_URI[md5sum] = "10714e50cea54dc7a227e3eddcd44d57"
+    11  SRC_URI[sha256sum] = "0becbd4b2b36b99c67f8c22ab98f7f80c9860aec70..."
+....
+
+NOTE: `ye` also allows you to use shortcuts for selecting options and
+actions at the same prompt.  In the example above, we typed `0 ENTER`
+to select `emacs.inc`, then `0 ENTER` to select the `View` action.  The
+shortcut would be `0v ENTER` in the file selection prompt.  For
+`Edit`, the shortcut would be `0e ENTER`.
+
+
+Except for the `find` command, all commands expect the `BUILDDIR`
+environment variable to be set in the environment.  This variable is
+automatically set by the `setup-environment` script provided by
+O.S. Systems for the Yocto Project-based projects.
+
+
+== Configuration
+
+`ye` allows you to customize the pager and the editor it uses for
+displaying and editing files, respectively.
+
+The configuration is via environment variables.  `ye` uses `YE_PAGER`
+and `YE_EDITOR` for pager and editor, respectively.
+
+For the editor, `ye` first checks if `YE_EDITOR` is set in the
+environment.  If it is not set, it checks the `EDITOR` environment
+variable.  If it is not set, it resorts to `emacs`.  If `emacs` cannot
+be found, you'll get an error.
+
+For the pager, `ye` first checks if `YE_PAGER` is set in the
+environment.  If it is not set, it checks the `PAGER` environment
+variable.  If it is not set, it resorts to `nl -ba %s | less`.  If
+`nl` or `less` cannot be found, you'll get an error.
+
+`%s` can be used as a placeholder for the file to act upon.
+
+
+== Requirements
+
+A Python installation and the directory structure in the layout
+created by O.S. System's Yocto Project-based platforms.
+
+`ye` has been tested with Python version 2.7.3
