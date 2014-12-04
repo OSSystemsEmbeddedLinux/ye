@@ -151,6 +151,7 @@ def find(pattern, basedir, exact, actions, files_only=True):
                                       valid_shortcuts)
         else:
             print results[0]
+        file = results[choice]
         if shortcut:
             for action in actions:
                 if action[1] == shortcut:
