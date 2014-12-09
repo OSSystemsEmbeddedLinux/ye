@@ -152,7 +152,7 @@ def find(pattern, basedir, exact, actions, files_only=True):
             file = results[choice]
         else:
             file = results[0]
-            print file
+            print colorize(file, orig_pattern)
         if shortcut:
             for action in actions:
                 if action[1] == shortcut:
