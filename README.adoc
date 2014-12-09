@@ -84,8 +84,8 @@ Example:
 
 ....
 $ ye f flex
-[0] /home/mario/yocto/sources/poky/meta/recipes-devtools/flex/flex.inc [0]
-[1] /home/mario/yocto/sources/poky/meta/recipes-devtools/flex/flex_2.5.35.bb [1]
+[0] ~/yocto/sources/poky/meta/recipes-devtools/flex/flex.inc [0]
+[1] ~/yocto/sources/poky/meta/recipes-devtools/flex/flex_2.5.35.bb [1]
 Option (ENTER to cancel): 1
 [0] View [0]
 [1] Edit [1]
