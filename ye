@@ -78,6 +78,7 @@ def find_yocto_root():
 def find_files(basedir, maxdepth=None, pattern='.*'):
     depth = 0
     re_pattern = re.compile(pattern)
+    re_skip_pattern = re.compile('~$')
     results = []
     match_whole_path = '/' in pattern
     for root, dirs, files in os.walk(basedir):
@@ -91,7 +92,7 @@ def find_files(basedir, maxdepth=None, pattern='.*'):
         else:
             all_files = dirs + files
         for file in all_files:
-            if not file.endswith('~') and re_pattern.match(file):
+            if  not re_skip_pattern.match(file) and re_pattern.match(file):
                 results.append(os.path.join(root, file))
     return results
 
