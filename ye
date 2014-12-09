@@ -149,9 +149,10 @@ def find(pattern, basedir, exact, actions, files_only=True):
             choice, shortcut = prompt(results,
                                       lambda file: colorize(file, orig_pattern),
                                       valid_shortcuts)
+            file = results[choice]
         else:
-            print results[0]
-        file = results[choice]
+            file = results[0]
+            print file
         if shortcut:
             for action in actions:
                 if action[1] == shortcut:
