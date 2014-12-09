@@ -91,7 +91,7 @@ def find_files(basedir, maxdepth=None, pattern='.*'):
         else:
             all_files = dirs + files
         for file in all_files:
-            if re_pattern.match(file):
+            if not file.endswith('~') and re_pattern.match(file):
                 results.append(os.path.join(root, file))
     return results
 
