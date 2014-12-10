@@ -118,7 +118,7 @@ def parse_choice(choice, valid_shortcuts):
     return result
 
 
-def prompt(options, colorizer=lambda x: x, valid_shortcuts=[]):
+def prompt_file(options, colorizer=lambda x: x, valid_shortcuts=[]):
     maxopts = len(options) - 1
 
     def inner_prompt():
@@ -134,6 +134,24 @@ def prompt(options, colorizer=lambda x: x, valid_shortcuts=[]):
         choice, shortcut = parse_choice(choice, valid_shortcuts)
         if choice is not None and choice <= maxopts:
             return (choice, shortcut)
+
+def prompt_action(options):
+    def inner_prompt():
+        for short, text in options:
+            print '[%s] %s' % (short, text)
+        print 'Option (ENTER to cancel):',
+        return raw_input()
+
+    short_options = [ o[0] for o in options ]
+    while True:
+        choice = inner_prompt()
+        if choice == '': # user cancelled
+            sys.exit(0)
+        try:
+            index = short_options.index(choice)
+            return index
+        except:
+            pass
 
 def shorten_path(path):
     home_pos = path.find(HOME)
@@ -159,10 +177,10 @@ def find(pattern, basedir, exact, actions, files_only=True):
     if results:
         valid_shortcuts = [ a[1] for a in actions ]
         if len(results) > 1:
-            choice, shortcut = prompt(results,
-                                      lambda file: colorize(shorten_path(file),
-                                                            orig_pattern),
-                                      valid_shortcuts)
+            choice, shortcut = prompt_file(results,
+                                           lambda file: colorize(shorten_path(file),
+                                                                 orig_pattern),
+                                           valid_shortcuts)
             file = results[choice]
         else:
             file = results[0]
@@ -172,7 +190,7 @@ def find(pattern, basedir, exact, actions, files_only=True):
                 if action[1] == shortcut:
                     action[2](file)
         else:
-            action = prompt([ a[0] for a in actions ])[0]
+            action = prompt_action([ (a[1], a[0]) for a in actions ])
             actions[action][2](file)
         print file
 
@@ -306,7 +324,8 @@ def main(args):
                 if not pkg_dirs:
                     sys.exit(0)
                 if len(pkg_dirs) > 1:
-                    choice = prompt([ os.path.basename(dir) for dir in pkg_dirs ])[0]
+                    fmts = [ os.path.basename(dir) for dir in pkg_dirs ]
+                    choice = prompt_action( [ (fmt[0], fmt) for fmt in fmts ])
                     pkg_dir = pkg_dirs[choice]
                 else:
                     pkg_dir = pkg_dirs[0]

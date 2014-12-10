@@ -87,8 +87,8 @@ $ ye f flex
 [0] ~/yocto/sources/poky/meta/recipes-devtools/flex/flex.inc [0]
 [1] ~/yocto/sources/poky/meta/recipes-devtools/flex/flex_2.5.35.bb [1]
 Option (ENTER to cancel): 1
-[0] View [0]
-[1] Edit [1]
+[v] View
+[e] Edit
 Option (ENTER to cancel): 0
      1  require flex.inc
      2  PR = "r3"
