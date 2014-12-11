@@ -138,12 +138,12 @@ def parse_choice(choice, valid_shortcuts):
     return result
 
 
-def prompt_file(options, colorizer=lambda x: x, valid_shortcuts=[]):
+def prompt_file(options, option_formatter=lambda x: x, valid_shortcuts=[]):
     maxopts = len(options) - 1
 
     def inner_prompt():
         for i, text in enumerate(options):
-            print '[%d] %s [%d]' % (i, colorizer(text), i)
+            print '[%d] %s [%d]' % (i, option_formatter(text), i)
         print 'Option (ENTER to cancel):',
         return raw_input()
 
