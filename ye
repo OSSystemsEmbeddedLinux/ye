@@ -18,13 +18,38 @@
 # logrun <pkg> <task expr>
 #    Show run.do_<task> for <task expr>
 
-# emacs fallback: zile, mg, vi
-
 
 import os
 import re
 import sys
 import glob
+
+def die(msg):
+    sys.stderr.write(msg + '\n')
+    sys.exit(1)
+
+def is_program_available(program):
+    progpaths = os.environ['PATH'].split(':')
+    for dir in progpaths:
+        progpath = os.path.join(dir, program)
+        if os.path.isfile(progpath) and os.access(progpath, os.X_OK):
+            return True
+    return False
+
+EDITOR_ALTERNATIVES = [('emacs', '-nw'), 'mg', 'zile', 'qemacs', 'nano', 'vim', 'vi']
+
+def find_editor():
+    for option in EDITOR_ALTERNATIVES:
+        editor = None
+        args = None
+        if isinstance(option, tuple):
+            editor = option[0]
+            args = option[1]
+        else:
+            editor = option
+        if is_program_available(editor):
+            return '%s %s' % (editor, args)
+    die('Could not find an editor.  Please, set the YE_EDITOR environment variable.')
 
 YE_PAGER = None
 if os.environ.has_key('YE_PAGER'):
@@ -40,7 +65,7 @@ if os.environ.has_key('YE_EDITOR'):
 elif os.environ.has_key('EDITOR'):
     YE_EDITOR = os.environ['EDITOR']
 else:
-    YE_EDITOR = 'emacs -nw' # the true and only sane option
+    YE_EDITOR = find_editor()
 YE_EDITOR += ' "%s"'
 
 BUILDDIR = None
@@ -50,11 +75,6 @@ except:
     pass
 
 HOME = os.environ['HOME']
-
-
-def die(msg):
-    sys.stderr.write(msg + '\n')
-    sys.exit(1)
 
 
 def colorize(text, pattern):
