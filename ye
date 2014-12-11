@@ -6,19 +6,6 @@
 # grep <args>
 #    Run 'repo grep <args>' under the current project.
 
-# ll <pkg>
-# loglist <pkg>
-#      Show the log files for <pkg>
-
-# l <pkg> <task expr>
-# log <pkg> <task expr>
-#    Show log.do_<task> for <task expr>
-
-# lr <pkg> <task expr>
-# logrun <pkg> <task expr>
-#    Show run.do_<task> for <task expr>
-
-
 import os
 import re
 import sys
@@ -233,7 +220,11 @@ def find_workdir(pattern, exact):
             dir = os.path.basename(path)
             if re_pattern.match(dir):
                 results.append(os.path.join(basedir, dir))
-    for result in results:
+    return results
+
+
+def show_workdir(pattern, exact):
+    for result in find_workdir(pattern, exact):
         print colorize(result, orig_pattern)
 
 
@@ -264,6 +255,51 @@ edit_action = ('Edit', 'e', lambda file: os.system(YE_EDITOR % file))
 pkg_view_action = ('View', 'v', pkg_view)
 
 pkg_info_action = ('Info', 'i', pkg_info)
+
+
+def list_temp_files(file_type, recipe_pattern, log_pattern, exact):
+    wds = find_workdir(recipe_pattern, exact)
+    if not wds:
+        sys.exit(1)
+    if len(wds) > 1:
+        choice, _ = prompt_file(wds, os.path.basename)
+        wd = wds[choice]
+    else:
+        wd = wds[0]
+    if not os.path.isdir(wd):
+        sys.exit(1)
+    if file_type == 'log':
+        print '=== Showing logs for %s' % os.path.basename(wd)
+    else:
+        print '=== Showing run scripts for %s' % os.path.basename(wd)
+    version_dirs = glob.glob(os.path.join(wd, '*'))
+    if len(version_dirs) > 1:
+        choice, _ = prompt_file(version_dirs, os.path.basename)
+        version_dir = version_dirs[choice]
+    else:
+        version_dir = version_dirs[0]
+    log_dir = os.path.join(version_dir, 'temp')
+    logs = filter(os.path.islink,
+                  find_files(log_dir,
+                             pattern='%s\..*%s.*' % (file_type, log_pattern)))
+    log = None
+    if logs:
+        if len(logs) > 1:
+            choice, _ = prompt_file(logs, os.path.basename)
+            log = logs[choice]
+        else:
+            log = logs[0]
+        print '=== %s' % log
+        view_action[2](log)
+        print log_dir
+
+
+def list_logs(recipe_pattern, log_pattern, exact):
+    list_temp_files('log', recipe_pattern, log_pattern, exact)
+
+
+def list_run_scripts(recipe_pattern, log_pattern, exact):
+    list_temp_files('run', recipe_pattern, log_pattern, exact)
 
 
 def usage(exit_code=None, cmd=None):
@@ -301,6 +337,18 @@ workdir [-e] <regex>
     Locate the Yocto's workdir for <regex>.  <regex> is implicitly
     surrounded by '.*', unless -e is provided.
 
+l [-e] <recipe pattern> <log pattern>
+log [-e] <recipe pattern> <log pattern>
+    Show the log files for <recipe>.  -e is only applied to
+    <recipe pattern>.  <log pattern> is always implicitly surrounded
+    by '.*'.
+
+r [-e] <recipe pattern> <run script pattern>
+run [-e] <recipe pattern> <run script pattern>
+    Show the log files for <recipe>.  -e is only applied to
+    <recipe pattern>.  <run script pattern> is always implicitly
+    surrounded by '.*'.
+
 ''' % os.path.basename(sys.argv[0]))
     if exit_code is not None:
         sys.exit(exit_code)
@@ -313,7 +361,8 @@ def main(args):
         usage(0)
     cmd = args[0]
 
-    if cmd in ['f', 'find', 'sf', 'sysroot-find', 'wd', 'workdir', 'pf', 'pkg-find']:
+    if cmd in ['f', 'find', 'sf', 'sysroot-find', 'wd', 'workdir',
+               'pf', 'pkg-find', 'l', 'log', 'r', 'run']:
         cmd_args = args[1:]
         exact = False
         if '-e' in cmd_args:
@@ -334,7 +383,7 @@ def main(args):
             elif cmd in ['wd', 'workdir']:
                 check_builddir()
                 if os.path.isdir(os.path.join(BUILDDIR, 'tmp', 'work')):
-                    find_workdir(pattern, exact)
+                    show_workdir(pattern, exact)
             elif cmd in ['pf', 'pkg-find']:
                 check_builddir()
                 deploy_dir = os.path.join(BUILDDIR, 'tmp', 'deploy')
@@ -350,6 +399,14 @@ def main(args):
                 else:
                     pkg_dir = pkg_dirs[0]
                 find(pattern, pkg_dir, exact, [pkg_view_action, pkg_info_action])
+            elif cmd in ['l', 'log', 'r', 'run']:
+                log_pattern = '.*'
+                if len(cmd_args) > 1:
+                    log_pattern = cmd_args[1]
+                if cmd in ['l', 'log']:
+                    list_logs(pattern, log_pattern, exact)
+                else:
+                    list_run_scripts(pattern, log_pattern, exact)
         else: usage(1)
     else:
         usage(1)

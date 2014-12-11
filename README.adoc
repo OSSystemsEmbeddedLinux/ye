@@ -39,12 +39,24 @@ wd [-e] <regex>
 workdir [-e] <regex>
     Locate the Yocto's workdir for <regex>.  <regex> is implicitly
     surrounded by '.*', unless -e is provided.
+
+l [-e] <recipe pattern> <log pattern>
+log [-e] <recipe pattern> <log pattern>
+    Show the log files for <recipe>.  -e is only applied to
+    <recipe pattern>.  <log pattern> is always implicitly surrounded
+    by '.*'.
+
+r [-e] <recipe pattern> <run script pattern>
+run [-e] <recipe pattern> <run script pattern>
+    Show the log files for <recipe>.  -e is only applied to
+    <recipe pattern>.  <run script pattern> is always implicitly
+    surrounded by '.*'.
 ....
 
 
 All the operations performed by the toplevel commands (`find`,
-`sysroot-find`, `pkg-find` and `workdir`) are related to locating
-files and directories in the project's directory structure.
+`sysroot-find`, `pkg-find`, `workdir`, `log` and `run`) are related to
+locating files and directories in the project's directory structure.
 
 Each command handles a special case:
 
@@ -60,6 +72,13 @@ packages (`$BUILDDIR/tmp/deploy/<pkg format>`).
 `workdir`:: Search for recipes' work directories in the work directory
 (`$BUILDDIR/tmp/work`).
 
+`log`:: Search for task log files in the work directory
+(`$BUILDDIR/<arch>/<recipe>/<version>/temp`) for the recipes that
+match the given recipe pattern.
+
+`run`:: Search for task run script files in the work directory
+(`$BUILDDIR/<arch>/<recipe>/<version>/temp`) for the recipes that
+match the given recipe pattern.
 
 All commands use a regular expression pattern (`<regex>`) as argument,
 which is matched against filenames only if they don't contain a slash
