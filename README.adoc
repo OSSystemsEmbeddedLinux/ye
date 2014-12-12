@@ -55,6 +55,11 @@ run [-e] <recipe pattern> <run script pattern>
 g <args>
 grep <args>
     Run 'repo grep <args>'.
+
+bh [-d] <revisions back>
+buildhistory [-d] <revisions back>
+    Show changes in buildhistory <revisions back> (a positive integer).
+    If -d is given, show the raw git diff output.
 ....
 
 

@@ -324,6 +324,17 @@ def grep(args, actions):
                 [view_action, edit_action])
 
 
+def buildhistory(revisions, raw_diff):
+    bhdir = os.path.join(BUILDDIR, 'buildhistory')
+    if not os.path.isdir(bhdir):
+        die('Could not find the buildhistory directory at %s.' % bhdir)
+    rev_window = 'HEAD~%d..HEAD' % revisions
+    if raw_diff:
+        os.system('cd %s && git diff %s' % (bhdir, rev_window))
+    else:
+        os.system('buildhistory-diff -p %s %s' % (bhdir, rev_window))
+
+
 def usage(exit_code=None, cmd=None):
     printer = None
     if exit_code is not None and exit_code != 0:
@@ -375,6 +386,10 @@ g <args>
 grep <args>
     Run 'repo grep <args>'.
 
+bh [-d] <revisions back>
+buildhistory [-d] <revisions back>
+    Show changes in buildhistory <revisions back> (a positive integer).
+    If -d is given, show the raw git diff output.
 ''' % os.path.basename(sys.argv[0]))
     if exit_code is not None:
         sys.exit(exit_code)
@@ -386,10 +401,26 @@ def main(args):
     if '-h' in args or '-help' in args or '--help' in args:
         usage(0)
     cmd = args[0]
+    cmd_args = args[1:]
 
-    if cmd in ['f', 'find', 'sf', 'sysroot-find', 'wd', 'workdir',
+    if cmd in ['bh', 'buildhistory']:
+        check_builddir()
+        raw_diff = False
+        if '-d' in cmd_args:
+            raw_diff = True
+            cmd_args.remove('-d')
+        if len(cmd_args) != 1:
+            usage(1)
+        revisions = None
+        try:
+            revisions = int(cmd_args[0])
+        except:
+            die('The argument to -d must be a positive integer.')
+        if revisions < 0:
+            die('The argument to -d must be a positive integer.')
+        buildhistory(revisions, raw_diff)
+    elif cmd in ['f', 'find', 'sf', 'sysroot-find', 'wd', 'workdir',
                'pf', 'pkg-find', 'l', 'log', 'r', 'run', 'g', 'grep']:
-        cmd_args = args[1:]
         exact = False
         if '-e' in cmd_args:
             exact = True
