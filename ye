@@ -368,7 +368,10 @@ def main(args):
         if '-e' in cmd_args:
             exact = True
             cmd_args.remove('-e')
-        pattern = cmd_args[0]
+        if len(cmd_args) < 1:
+            usage(1)
+        else:
+            pattern = cmd_args[0]
         if cmd_args:
             if cmd in ['f', 'find']:
                 find(pattern,
