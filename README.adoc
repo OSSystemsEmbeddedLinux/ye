@@ -51,6 +51,10 @@ run [-e] <recipe pattern> <run script pattern>
     Show the log files for <recipe>.  -e is only applied to
     <recipe pattern>.  <run script pattern> is always implicitly
     surrounded by '.*'.
+
+g <args>
+grep <args>
+    Run 'repo grep <args>'.
 ....
 
 
@@ -80,6 +84,9 @@ match the given recipe pattern.
 (`$BUILDDIR/<arch>/<recipe>/<version>/temp`) for the recipes that
 match the given recipe pattern.
 
+`grep`:: A wrapper around `repo grep`, which interactively prompts for
+actions on files that match the search patterns.
+
 All commands use a regular expression pattern (`<regex>`) as argument,
 which is matched against filenames only if they don't contain a slash
 (`/`) character.  If they contain a slash character, it means you
@@ -87,11 +94,12 @@ probably want to search for a full or partial paths with at least one
 directory part.  In this case, `ye` will match the pattern agains the
 full file path.
 
-All commands accept a `-e` option, which indicates the search is to be
-_exact_.  Without this option `ye` will surround the provided pattern
-by `.*`, which means matching anything before and after the provided
-pattern (which will be matched against the filename or the full path,
-depending if the given pattern contains a slash or not).
+All commands, except `grep`, accept a `-e` option, which indicates the
+search is to be _exact_.  Without this option `ye` will surround the
+provided pattern by `.*`, which means matching anything before and
+after the provided pattern (which will be matched against the filename
+or the full path, depending if the given pattern contains a slash or
+not).
 
 The matches will be highlighted in red on the output.
 
@@ -129,10 +137,10 @@ shortcut would be `0v ENTER` in the file selection prompt.  For
 `Edit`, the shortcut would be `0e ENTER`.
 
 
-Except for the `find` command, all commands expect the `BUILDDIR`
-environment variable to be set in the environment.  This variable is
-automatically set by the `setup-environment` script provided by
-O.S. Systems for the Yocto Project-based projects.
+Except for the `find` and `grep` commands, all commands expect the
+`BUILDDIR` environment variable to be set in the environment.  This
+variable is automatically set by the `setup-environment` script
+provided by O.S. Systems for the Yocto Project-based projects.
 
 
 == Configuration

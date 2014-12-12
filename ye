@@ -1,15 +1,13 @@
 #! /usr/bin/env python
 
 ### TODO
-
-# g <args>
-# grep <args>
-#    Run 'repo grep <args>' under the current project.
+# Implement exclusion pattern for grep (option should not clash with git grep's)
 
 import os
 import re
 import sys
 import glob
+import subprocess
 
 def die(msg):
     sys.stderr.write(msg + '\n')
@@ -302,6 +300,30 @@ def list_run_scripts(recipe_pattern, log_pattern, exact):
     list_temp_files('run', recipe_pattern, log_pattern, exact)
 
 
+def grep(args, actions):
+    p = subprocess.Popen(['repo', 'grep'] + args, stdout=subprocess.PIPE)
+    regex_pattern = filter(lambda opt: not opt.startswith('-'), args)
+    if not regex_pattern:
+        die('Could not determine the pattern for grep.')
+    if len(regex_pattern) > 1:
+        die('Multiple patterns for grep is not supported.')
+    regex_pattern = regex_pattern[0]
+    output = p.communicate()[0]
+    results = output.split('\n')[:-1] # the last line is always empty
+    if len(results) > 1:
+        choice, shortcut = prompt_file(results,
+                                       option_formatter=lambda o: colorize(o, regex_pattern),
+                                       valid_shortcuts=['v', 'e'])
+        match = results[choice]
+    else:
+        match = results[0]
+    file = match.split(':')[0] # let's hope filenames don't contain ':'
+    return find(file,
+                os.path.join(find_yocto_root(), 'sources'),
+                False,
+                [view_action, edit_action])
+
+
 def usage(exit_code=None, cmd=None):
     printer = None
     if exit_code is not None and exit_code != 0:
@@ -349,6 +371,10 @@ run [-e] <recipe pattern> <run script pattern>
     <recipe pattern>.  <run script pattern> is always implicitly
     surrounded by '.*'.
 
+g <args>
+grep <args>
+    Run 'repo grep <args>'.
+
 ''' % os.path.basename(sys.argv[0]))
     if exit_code is not None:
         sys.exit(exit_code)
@@ -362,7 +388,7 @@ def main(args):
     cmd = args[0]
 
     if cmd in ['f', 'find', 'sf', 'sysroot-find', 'wd', 'workdir',
-               'pf', 'pkg-find', 'l', 'log', 'r', 'run']:
+               'pf', 'pkg-find', 'l', 'log', 'r', 'run', 'g', 'grep']:
         cmd_args = args[1:]
         exact = False
         if '-e' in cmd_args:
@@ -373,7 +399,9 @@ def main(args):
         else:
             pattern = cmd_args[0]
         if cmd_args:
-            if cmd in ['f', 'find']:
+            if cmd in ['g', 'grep']:
+                print grep(cmd_args, [view_action, edit_action])
+            elif cmd in ['f', 'find']:
                 print find(pattern,
                            os.path.join(find_yocto_root(), 'sources'),
                            exact,
