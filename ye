@@ -199,7 +199,7 @@ def find(pattern, basedir, exact, actions, files_only=True):
         else:
             action = prompt_action([ (a[1], a[0]) for a in actions ])
             actions[action][2](file)
-        print file
+        return file
 
 def check_builddir():
     if not BUILDDIR:
@@ -374,15 +374,15 @@ def main(args):
             pattern = cmd_args[0]
         if cmd_args:
             if cmd in ['f', 'find']:
-                find(pattern,
-                     os.path.join(find_yocto_root(), 'sources'),
-                     exact,
-                     [view_action, edit_action])
+                print find(pattern,
+                           os.path.join(find_yocto_root(), 'sources'),
+                           exact,
+                           [view_action, edit_action])
             elif cmd in ['sf', 'sysroot-find']:
                 check_builddir()
                 sysroots_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots')
                 if os.path.isdir(sysroots_dir):
-                    find(pattern, sysroots_dir, exact, [view_action, edit_action])
+                    print find(pattern, sysroots_dir, exact, [view_action, edit_action])
             elif cmd in ['wd', 'workdir']:
                 check_builddir()
                 if os.path.isdir(os.path.join(BUILDDIR, 'tmp', 'work')):
@@ -401,7 +401,7 @@ def main(args):
                     pkg_dir = pkg_dirs[choice]
                 else:
                     pkg_dir = pkg_dirs[0]
-                find(pattern, pkg_dir, exact, [pkg_view_action, pkg_info_action])
+                print find(pattern, pkg_dir, exact, [pkg_view_action, pkg_info_action])
             elif cmd in ['l', 'log', 'r', 'run']:
                 log_pattern = '.*'
                 if len(cmd_args) > 1:
