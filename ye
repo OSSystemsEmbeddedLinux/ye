@@ -223,7 +223,7 @@ def find_workdir(pattern, exact):
 
 def show_workdir(pattern, exact):
     for result in find_workdir(pattern, exact):
-        print colorize(result, orig_pattern)
+        print colorize(result, pattern)
 
 
 def pkg_view(file):
