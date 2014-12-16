@@ -63,8 +63,11 @@ HOME = os.environ['HOME']
 
 
 def colorize(text, pattern):
-    return re.sub(pattern,
-                  lambda m: '\x1b[31;1m{}\x1b[0m'.format(m.group()), text)
+    if sys.stdout.isatty():
+        return re.sub(pattern,
+                      lambda m: '\x1b[31;1m{}\x1b[0m'.format(m.group()), text)
+    else:
+        return text
 
 
 def find_yocto_root():
