@@ -15,21 +15,21 @@ Usage: ye <command> [ <options> ]
 
 f [-e] <regex>
 find [-e] <regex>
-    Locate paths that match the given expression <regex>.  <regex> is
-    case insensitive and implicitly surrounded by '.*'.  -e disables
-    the implicit use of '.*' around the given <regex>.  Note that,
-    unless <regex> contains /, matching is attempted on filenames only
-    (not on dirnames).  If <regex> contains /, matching is attempted
-    on the full path.
+    Locate paths (in the "sources" directory) that match the given
+    expression <regex>.  <regex> is case insensitive and implicitly
+    surrounded by '.*'.  -e disables the implicit use of '.*' around
+    the given <regex>.  Note that, unless <regex> contains /, matching
+    is attempted on filenames only (not on dirnames).  If <regex>
+    contains /, matching is attempted on the full path.
 
 sf [-e] <regex>
 sysroot-find [-e] <regex>
-    Locate paths that match the given expression <regex>.  <regex> is
-    case insensitive and implicitly surrounded by '.*'.  -e disables
-    the implicit use of '.*' around the given <regex>.   Note that,
-    unless <regex> contains /, matching is attempted on filenames only
-    (not on dirnames).  If <regex> contains /, matching is attempted
-    on the full path.
+    Locate paths (in the "sysroots" directory) that match the given
+    expression <regex>.  <regex> is case insensitive and implicitly
+    surrounded by '.*'.  -e disables the implicit use of '.*' around
+    the given <regex>.  Note that, unless <regex> contains /, matching
+    is attempted on filenames only (not on dirnames).  If <regex>
+    contains /, matching is attempted on the full path.
 
 pf [-e] <regex>
 pkg-find [-e] <regex>
