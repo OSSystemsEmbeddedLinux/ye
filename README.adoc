@@ -181,3 +181,9 @@ A Python installation and the directory structure in the layout
 created by O.S. System's Yocto Project-based platforms.
 
 `ye` has been tested with Python version 2.7.3
+
+
+== License
+
+`ye` is distributed under the GNU Affero General Public License.  See
+the `LICENSE` file for the full license text.
