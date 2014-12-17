@@ -370,8 +370,8 @@ pkg-find [-e] <regex>
 
 wd [-e] <regex>
 workdir [-e] <regex>
-    Locate the Yocto's workdir for <regex>.  <regex> is implicitly
-    surrounded by '.*', unless -e is provided.
+    Locate the Yocto Project's workdir for <regex>.  <regex> is
+    implicitly surrounded by '.*', unless -e is provided.
 
 l [-e] <recipe pattern> <log pattern>
 log [-e] <recipe pattern> <log pattern>
