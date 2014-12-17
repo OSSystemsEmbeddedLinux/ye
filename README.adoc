@@ -127,7 +127,7 @@ $ ye f flex
 Option (ENTER to cancel): 1
 [v] View
 [e] Edit
-Option (ENTER to cancel): 0
+Option (ENTER to cancel): v
      1  require flex.inc
      2  PR = "r3"
      3  LICENSE="BSD"
