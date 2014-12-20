@@ -57,7 +57,7 @@ YE_PAGER = None
 if os.environ.has_key('YE_PAGER'):
     YE_PAGER = os.environ['YE_PAGER']
 elif os.environ.has_key('PAGER'):
-    YE_PAGER = os.environ['PAGER']
+    YE_PAGER = os.environ['PAGER'] + ' %s'
 else:
     YE_PAGER = 'nl -ba "%s" | less'
 
