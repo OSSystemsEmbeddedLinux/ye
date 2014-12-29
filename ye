@@ -330,7 +330,9 @@ def grep(args, actions):
     regex_pattern = regex_pattern[0]
     output = p.communicate()[0]
     results = output.split('\n')[:-1] # the last line is always empty
-    if len(results) > 1:
+    if len(results) == 0:
+        die('Pattern not found in known repositories.')
+    elif len(results) > 1:
         choice, shortcut = prompt_file(results,
                                        option_formatter=lambda o: colorize(o, regex_pattern),
                                        valid_shortcuts=['v', 'e'])
