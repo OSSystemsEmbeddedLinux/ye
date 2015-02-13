@@ -22,6 +22,16 @@ find [-e] <regex>
     is attempted on filenames only (not on dirnames).  If <regex>
     contains /, matching is attempted on the full path.
 
+v [-e] <regex>
+view [-e] <regex>
+    Shortcut to find & view.  If multiple files are found, a prompt for
+        files will be displayed (but not for actions).
+
+e [-e] <regex>
+edit [-e] <regex>
+    Shortcut to find & edit.  If multiple files are found, a prompt for
+        files will be displayed (but not for actions).
+
 sf [-e] <regex>
 sysroot-find [-e] <regex>
     Locate paths (in the "sysroots" directory) that match the given
