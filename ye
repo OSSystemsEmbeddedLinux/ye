@@ -189,7 +189,7 @@ def shorten_path(path):
     else:
         return path
 
-def find(pattern, basedir, exact, actions, files_only=True):
+def find(pattern, basedir, exact, actions):
     ''' actions = [('label', 'shortcut', proc) ...] '''
     results = []
     shortcut = None
