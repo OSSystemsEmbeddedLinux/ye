@@ -153,7 +153,7 @@ Option (ENTER to cancel): v
 
 NOTE: `ye` also allows you to use shortcuts for selecting options and
 actions at the same prompt.  In the example above, we typed `0 ENTER`
-to select `emacs.inc`, then `0 ENTER` to select the `View` action.  The
+to select `flex.inc`, then `0 ENTER` to select the `View` action.  The
 shortcut would be `0v ENTER` in the file selection prompt.  For
 `Edit`, the shortcut would be `0e ENTER`.
 
