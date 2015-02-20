@@ -199,28 +199,32 @@ def find(pattern, basedir, exact, actions):
     for file in find_files(basedir, pattern=pattern):
         if not os.path.isdir(file):
             results.append(file)
-    if results:
-        valid_shortcuts = [ a[1] for a in actions ]
-        if len(results) > 1:
-            choice, shortcut = prompt_file(results,
-                                           lambda file: colorize(shorten_path(file),
-                                                                 orig_pattern),
-                                           valid_shortcuts)
-            file = results[choice]
-        else:
-            file = results[0]
-            print colorize(shorten_path(file), orig_pattern)
-        if len(actions) == 1:
-            actions[0][2](file)
+    if sys.stdout.isatty():
+        if results:
+            valid_shortcuts = [ a[1] for a in actions ]
+            if len(results) > 1:
+                choice, shortcut = prompt_file(results,
+                                               lambda file: colorize(shorten_path(file),
+                                                                     orig_pattern),
+                                               valid_shortcuts)
+                file = results[choice]
+            else:
+                file = results[0]
+                print colorize(shorten_path(file), orig_pattern)
+            if len(actions) == 1:
+                actions[0][2](file)
+                return file
+            if shortcut:
+                for action in actions:
+                    if action[1] == shortcut:
+                        action[2](file)
+            else:
+                action = prompt_action([ (a[1], a[0]) for a in actions ])
+                actions[action][2](file)
             return file
-        if shortcut:
-            for action in actions:
-                if action[1] == shortcut:
-                    action[2](file)
-        else:
-            action = prompt_action([ (a[1], a[0]) for a in actions ])
-            actions[action][2](file)
-        return file
+    else:
+        return results
+
 
 def check_builddir():
     if not BUILDDIR:
@@ -247,6 +251,16 @@ def find_workdir(pattern, exact):
 def show_workdir(pattern, exact):
     for result in find_workdir(pattern, exact):
         print colorize(result, pattern)
+
+
+def print_matches(matches):
+    if matches:
+        if matches.__class__.__name__ == 'list':
+            for match in matches:
+                print match
+        else:
+            # a string
+            print matches
 
 
 def pkg_view(file):
@@ -333,21 +347,23 @@ def grep(args, actions):
     regex_pattern = regex_pattern[0]
     output = p.communicate()[0]
     results = output.split('\n')[:-1] # the last line is always empty
-    if len(results) == 0:
-        die('Pattern not found in known repositories.')
-    elif len(results) > 1:
-        choice, shortcut = prompt_file(results,
-                                       option_formatter=lambda o: colorize(o, regex_pattern),
-                                       valid_shortcuts=['v', 'e'])
-        match = results[choice]
+    if sys.stdout.isatty():
+        if len(results) == 0:
+            return None
+        elif len(results) > 1:
+            choice, shortcut = prompt_file(results,
+                                           option_formatter=lambda o: colorize(o, regex_pattern),
+                                           valid_shortcuts=['v', 'e'])
+            match = results[choice]
+        else:
+            match = results[0]
+        file = match.split(':')[0] # let's hope filenames don't contain ':'
+        return find(file,
+                    os.path.join(find_yocto_root(), 'sources'),
+                    False,
+                    [view_action, edit_action])
     else:
-        match = results[0]
-    file = match.split(':')[0] # let's hope filenames don't contain ':'
-    return find(file,
-                os.path.join(find_yocto_root(), 'sources'),
-                False,
-                [view_action, edit_action])
-
+        return results
 
 def buildhistory(revisions, raw_diff):
     bhdir = os.path.join(BUILDDIR, 'buildhistory')
@@ -467,7 +483,7 @@ def main(args):
             pattern = cmd_args[0]
         if cmd_args:
             if cmd in ['g', 'grep']:
-                print grep(cmd_args, [view_action, edit_action])
+                print_matches(grep(cmd_args, [view_action, edit_action]))
             elif cmd in ['f', 'find', 'v', 'view', 'e', 'edit']:
                 actions = None
                 if cmd in ['v', 'view']:
@@ -476,15 +492,18 @@ def main(args):
                     actions = [edit_action]
                 else:
                     actions = [view_action, edit_action]
-                print find(pattern,
-                           os.path.join(find_yocto_root(), 'sources'),
-                           exact,
-                           actions)
+                print_matches(find(pattern,
+                                   os.path.join(find_yocto_root(), 'sources'),
+                                   exact,
+                                   actions))
             elif cmd in ['sf', 'sysroot-find']:
                 check_builddir()
                 sysroots_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots')
                 if os.path.isdir(sysroots_dir):
-                    print find(pattern, sysroots_dir, exact, [view_action, edit_action])
+                    print_matches(find(pattern,
+                                       sysroots_dir,
+                                       exact,
+                                       [view_action, edit_action]))
             elif cmd in ['wd', 'workdir']:
                 check_builddir()
                 if os.path.isdir(os.path.join(BUILDDIR, 'tmp', 'work')):
@@ -503,7 +522,10 @@ def main(args):
                     pkg_dir = pkg_dirs[choice]
                 else:
                     pkg_dir = pkg_dirs[0]
-                print find(pattern, pkg_dir, exact, [pkg_view_action, pkg_info_action])
+                print_matches(find(pattern,
+                                   pkg_dir,
+                                   exact,
+                                   [pkg_view_action, pkg_info_action]))
             elif cmd in ['l', 'log', 'r', 'run']:
                 log_pattern = '.*'
                 if len(cmd_args) > 1:
