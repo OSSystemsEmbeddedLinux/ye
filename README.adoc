@@ -190,7 +190,9 @@ variable.  If it is not set, it resorts to `nl -ba %s | less`.  If
 A Python installation and the directory structure in the layout
 created by O.S. System's Yocto Project-based platforms.
 
-`ye` has been tested with Python version 2.7.3
+`ye` has been more extensively tested with Python version 2.7.3, but
+it should work with other recent Python 2.x versions and with Python
+3.x.
 
 
 == License
