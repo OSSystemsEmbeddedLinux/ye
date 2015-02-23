@@ -80,6 +80,11 @@ except:
 
 HOME = os.environ['HOME']
 
+# `raw_input' has been replaced by `input' in Python 3
+try:
+    input = raw_input
+except NameError:
+    pass
 
 def colorize(text, pattern):
     if sys.stdout.isatty():
@@ -152,7 +157,7 @@ def prompt_file(options, option_formatter=lambda x: x, valid_shortcuts=[]):
         for i, text in enumerate(options):
             print('[%d] %s [%d]' % (i, option_formatter(text), i))
         print('Option (ENTER to cancel): ', end='')
-        return raw_input()
+        return input()
 
     while True:
         choice = inner_prompt()
@@ -167,7 +172,7 @@ def prompt_action(options):
         for short, text in options:
             print('[%s] %s' % (short, text))
         print('Option (ENTER to cancel): ', end='')
-        return raw_input()
+        return input()
 
     short_options = [ o[0] for o in options ]
     while True:
