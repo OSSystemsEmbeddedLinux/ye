@@ -56,17 +56,17 @@ def find_editor():
     die('Could not find an editor.  Please, set the YE_EDITOR environment variable.')
 
 YE_PAGER = None
-if os.environ.has_key('YE_PAGER'):
+if 'YE_PAGER' in os.environ:
     YE_PAGER = os.environ['YE_PAGER']
-elif os.environ.has_key('PAGER'):
+elif 'PAGER' in os.environ:
     YE_PAGER = os.environ['PAGER'] + ' %s'
 else:
     YE_PAGER = 'nl -ba "%s" | less'
 
 YE_EDITOR = None
-if os.environ.has_key('YE_EDITOR'):
+if 'YE_EDITOR' in os.environ:
     YE_EDITOR = os.environ['YE_EDITOR']
-elif os.environ.has_key('EDITOR'):
+elif 'EDITOR' in os.environ:
     YE_EDITOR = os.environ['EDITOR']
 else:
     YE_EDITOR = find_editor()
