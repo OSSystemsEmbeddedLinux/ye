@@ -26,7 +26,13 @@ import os
 import re
 import sys
 import glob
+import locale
 import subprocess
+
+encoding = locale.getdefaultlocale()[1]
+if not encoding:
+    sys.stderr.write('WARNING: could not determine locale. Forcing UTF-8.\n')
+    encoding = 'UTF-8'
 
 def die(msg):
     sys.stderr.write(msg + '\n')
@@ -353,7 +359,7 @@ def grep(args, actions):
         die('Multiple patterns for grep is not supported.')
     regex_pattern = regex_pattern[0]
     output = p.communicate()[0]
-    results = output.split('\n')[:-1] # the last line is always empty
+    results = output.decode(encoding).split('\n')[:-1] # the last line is always empty
     if sys.stdout.isatty():
         if len(results) == 0:
             return None
