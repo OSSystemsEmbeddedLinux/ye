@@ -20,6 +20,8 @@
 ### TODO
 # Implement exclusion pattern for grep (option should not clash with git grep's)
 
+from __future__ import print_function
+
 import os
 import re
 import sys
@@ -148,8 +150,8 @@ def prompt_file(options, option_formatter=lambda x: x, valid_shortcuts=[]):
 
     def inner_prompt():
         for i, text in enumerate(options):
-            print '[%d] %s [%d]' % (i, option_formatter(text), i)
-        print 'Option (ENTER to cancel):',
+            print('[%d] %s [%d]' % (i, option_formatter(text), i))
+        print('Option (ENTER to cancel): ', end='')
         return raw_input()
 
     while True:
@@ -163,8 +165,8 @@ def prompt_file(options, option_formatter=lambda x: x, valid_shortcuts=[]):
 def prompt_action(options):
     def inner_prompt():
         for short, text in options:
-            print '[%s] %s' % (short, text)
-        print 'Option (ENTER to cancel):',
+            print('[%s] %s' % (short, text))
+        print('Option (ENTER to cancel): ', end='')
         return raw_input()
 
     short_options = [ o[0] for o in options ]
@@ -210,7 +212,7 @@ def find(pattern, basedir, exact, actions):
                 file = results[choice]
             else:
                 file = results[0]
-                print colorize(shorten_path(file), orig_pattern)
+                print(colorize(shorten_path(file), orig_pattern))
             if len(actions) == 1:
                 actions[0][2](file)
                 return file
@@ -250,17 +252,17 @@ def find_workdir(pattern, exact):
 
 def show_workdir(pattern, exact):
     for result in find_workdir(pattern, exact):
-        print colorize(result, pattern)
+        print(colorize(result, pattern))
 
 
 def print_matches(matches):
     if matches:
         if matches.__class__.__name__ == 'list':
             for match in matches:
-                print match
+                print(match)
         else:
             # a string
-            print matches
+            print(matches)
 
 
 def pkg_view(file):
@@ -304,9 +306,9 @@ def list_temp_files(file_type, recipe_pattern, log_pattern, exact):
     if not os.path.isdir(wd):
         sys.exit(1)
     if file_type == 'log':
-        print '=== Showing logs for %s' % os.path.basename(wd)
+        print('=== Showing logs for %s' % os.path.basename(wd))
     else:
-        print '=== Showing run scripts for %s' % os.path.basename(wd)
+        print('=== Showing run scripts for %s' % os.path.basename(wd))
     version_dirs = glob.glob(os.path.join(wd, '*'))
     if len(version_dirs) > 1:
         choice, _ = prompt_file(version_dirs, os.path.basename)
@@ -324,9 +326,9 @@ def list_temp_files(file_type, recipe_pattern, log_pattern, exact):
             log = logs[choice]
         else:
             log = logs[0]
-        print '=== %s' % log
+        print('=== %s' % log)
         view_action[2](log)
-        print log_dir
+        print(log_dir)
 
 
 def list_logs(recipe_pattern, log_pattern, exact):
