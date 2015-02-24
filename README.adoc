@@ -45,6 +45,16 @@ pf [-e] <regex>
 pkg-find [-e] <regex>
     Like 'find', but for packages.
 
+pv [-e] <regex>
+pkg-view [-e] <regex>
+    Shortcut to pkg-find & view.  If multiple packages are found, a
+        prompt for packages will be displayed (but not for actions).
+
+pi [-e] <regex>
+pkg-info [-e] <regex>
+    Shortcut to pkg-find & info.  If multiple packages are found, a
+        prompt for packages will be displayed (but not for actions).
+
 wd [-e] <regex>
 workdir [-e] <regex>
     Locate the Yocto Project's workdir for <regex>.  <regex> is
@@ -124,9 +134,12 @@ contains a slash or not).
 The matches will be highlighted in red on the output.
 
 Except for the `workdir` and `buildhistory` commands, all `ye`
-commands are interactive.  After locating files that match the given
-pattern, `ye` will prompt you to select one of the matches and, next,
-what to do with it.
+commands are (or may be) interactive.  After locating files that match
+the given pattern, `ye` will prompt you to select one of the matches
+and, next, what to do with it.  In case the standard output is not a
+terminal (e.g., a file or a pipe), interactive commands will just
+print the results to the standard output (no prompt for action will be
+displayed).
 
 Example:
 
@@ -157,6 +170,18 @@ to select `flex.inc`, then `0 ENTER` to select the `View` action.  The
 shortcut would be `0v ENTER` in the file selection prompt.  For
 `Edit`, the shortcut would be `0e ENTER`.
 
+Shortcuts for actions may also be specified on the command line.  Some
+commands are actually shortcuts to `<command> -> <action>`:
+
+`view` (`v`):: shortcut to `find -> view`
+`edit` (`e`):: shortcut to `find -> edit`
+`pkg-view` (`pv`):: shortcut to `pkg-find -> view`
+`pkg-info` (`pi`):: shortcut to `pkg-find -> info`
+
+In case the pattern given as argument to `find` or `pkg-find` matches
+multiple files or packages, a prompt for selecting files will be
+displayed if the standard output is a terminal.  If the standard
+output is not a terminal, all matches will be printed.
 
 Except for the `find` and `grep` commands, all commands expect the
 `BUILDDIR` environment variable to be set in the environment.  This

@@ -429,6 +429,16 @@ pf [-e] <regex>
 pkg-find [-e] <regex>
     Like 'find', but for packages.
 
+pv [-e] <regex>
+pkg-view [-e] <regex>
+    Shortcut to pkg-find & view.  If multiple packages are found, a
+    prompt for packages will be displayed (but not for actions).
+
+pi [-e] <regex>
+pkg-info [-e] <regex>
+    Shortcut to pkg-find & info.  If multiple packages are found, a
+    prompt for packages will be displayed (but not for actions).
+
 wd [-e] <regex>
 workdir [-e] <regex>
     Locate the Yocto Project's workdir for <regex>.  <regex> is
@@ -484,8 +494,8 @@ def main(args):
             die('The argument to -d must be a positive integer.')
         buildhistory(revisions, raw_diff)
     elif cmd in ['f', 'find', 'v', 'view', 'e', 'edit', 'sf', 'sysroot-find',
-                 'wd', 'workdir', 'pf', 'pkg-find', 'l', 'log', 'r', 'run',
-                 'g', 'grep']:
+                 'wd', 'workdir', 'pf', 'pkg-find', 'pv', 'pkg-view',
+                 'pi', 'pkg-info', 'l', 'log', 'r', 'run', 'g', 'grep']:
         exact = False
         if '-e' in cmd_args:
             exact = True
@@ -521,7 +531,7 @@ def main(args):
                 check_builddir()
                 if os.path.isdir(os.path.join(BUILDDIR, 'tmp', 'work')):
                     show_workdir(pattern, exact)
-            elif cmd in ['pf', 'pkg-find']:
+            elif cmd in ['pf', 'pkg-find', 'pv', 'pkg-view', 'pi', 'pkg-info']:
                 check_builddir()
                 deploy_dir = os.path.join(BUILDDIR, 'tmp', 'deploy')
                 pkg_dirs = [ os.path.join(deploy_dir, fmt) for fmt in ['deb', 'ipk', 'rpm'] ]
@@ -535,10 +545,14 @@ def main(args):
                     pkg_dir = pkg_dirs[choice]
                 else:
                     pkg_dir = pkg_dirs[0]
-                print_matches(find(pattern,
-                                   pkg_dir,
-                                   exact,
-                                   [pkg_view_action, pkg_info_action]))
+                actions = None
+                if cmd in ['pv', 'pkg-view']:
+                    actions = [pkg_view_action]
+                elif cmd in ['pi', 'pkf-info']:
+                    actions = [pkg_info_action]
+                else:
+                    actions = [pkg_view_action, pkg_info_action]
+                print_matches(find(pattern, pkg_dir, exact, actions))
             elif cmd in ['l', 'log', 'r', 'run']:
                 log_pattern = '.*'
                 if len(cmd_args) > 1:
