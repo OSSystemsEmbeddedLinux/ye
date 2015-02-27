@@ -80,6 +80,14 @@ bh [-d] <revisions back>
 buildhistory [-d] <revisions back>
     Show changes in buildhistory <revisions back> (a positive integer).
     If -d is given, show the raw git diff output.
+
+d [-e] <regex>
+doc [-e] <regex>
+    Search variable names in the reference manual that match the given
+    expression <regex> and show the documentation for the selected
+    match.  <regex> is case insensitive and implicitly surrounded by
+    '.*'.  -e disables the implicit use of '.*' around the given
+    <regex>.
 ....
 
 
@@ -219,6 +227,8 @@ created by O.S. System's Yocto Project-based platforms.
 it should work with other recent Python 2.x versions and with Python
 3.x.
 
+For the `doc` command, the http://lxml.de/[lxml] module for Python is
+required.
 
 == License
 

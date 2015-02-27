@@ -25,9 +25,18 @@ from __future__ import print_function
 import os
 import re
 import sys
+import time
 import glob
+import urllib
 import locale
 import subprocess
+
+# lxml is required for parsing the documentation XML files
+is_lxml_available = True
+try:
+    from lxml import etree
+except:
+    is_lxml_available = False
 
 encoding = locale.getdefaultlocale()[1]
 if not encoding:
@@ -45,6 +54,8 @@ def is_program_available(program):
         if os.path.isfile(progpath) and os.access(progpath, os.X_OK):
             return True
     return False
+
+YE_DIR = os.path.join(os.environ['HOME'], '.ye')
 
 EDITOR_ALTERNATIVES = [('emacs', '-nw'), 'mg', 'zile', 'qemacs', 'nano', 'vim', 'vi']
 
@@ -99,6 +110,16 @@ def colorize(text, pattern):
     else:
         return text
 
+def download_file(uri, output_file):
+    dir = os.path.dirname(output_file)
+    if dir and not os.path.exists(dir):
+        os.makedirs(dir)
+    try:
+        uri_fd = urllib.urlopen(uri)
+    except:
+        die('Could not download %s.  Aborting' % uri)
+    with open(output_file, 'w') as output_fd:
+        output_fd.write(uri_fd.read())
 
 def find_yocto_root():
     def inner_find(dir):
@@ -156,7 +177,7 @@ def parse_choice(choice, valid_shortcuts):
     return result
 
 
-def prompt_file(options, option_formatter=lambda x: x, valid_shortcuts=[]):
+def prompt(options, option_formatter=lambda x: x, valid_shortcuts=[]):
     maxopts = len(options) - 1
 
     def inner_prompt():
@@ -216,10 +237,10 @@ def find(pattern, basedir, exact, actions):
         if results:
             valid_shortcuts = [ a[1] for a in actions ]
             if len(results) > 1:
-                choice, shortcut = prompt_file(results,
-                                               lambda file: colorize(shorten_path(file),
-                                                                     orig_pattern),
-                                               valid_shortcuts)
+                choice, shortcut = prompt(results,
+                                          lambda file: colorize(shorten_path(file),
+                                                                orig_pattern),
+                                          valid_shortcuts)
                 file = results[choice]
             else:
                 file = results[0]
@@ -310,7 +331,7 @@ def list_temp_files(file_type, recipe_pattern, log_pattern, exact):
     if not wds:
         sys.exit(1)
     if len(wds) > 1:
-        choice, _ = prompt_file(wds, os.path.basename)
+        choice, _ = prompt(wds, os.path.basename)
         wd = wds[choice]
     else:
         wd = wds[0]
@@ -322,7 +343,7 @@ def list_temp_files(file_type, recipe_pattern, log_pattern, exact):
         print('=== Showing run scripts for %s' % os.path.basename(wd))
     version_dirs = glob.glob(os.path.join(wd, '*'))
     if len(version_dirs) > 1:
-        choice, _ = prompt_file(version_dirs, os.path.basename)
+        choice, _ = prompt(version_dirs, os.path.basename)
         version_dir = version_dirs[choice]
     else:
         version_dir = version_dirs[0]
@@ -333,7 +354,7 @@ def list_temp_files(file_type, recipe_pattern, log_pattern, exact):
     log = None
     if logs:
         if len(logs) > 1:
-            choice, _ = prompt_file(logs, os.path.basename)
+            choice, _ = prompt(logs, os.path.basename)
             log = logs[choice]
         else:
             log = logs[0]
@@ -364,9 +385,9 @@ def grep(args, actions):
         if len(results) == 0:
             return None
         elif len(results) > 1:
-            choice, shortcut = prompt_file(results,
-                                           option_formatter=lambda o: colorize(o, regex_pattern),
-                                           valid_shortcuts=['v', 'e'])
+            choice, shortcut = prompt(results,
+                                      option_formatter=lambda o: colorize(o, regex_pattern),
+                                      valid_shortcuts=['v', 'e'])
             match = results[choice]
         else:
             match = results[0]
@@ -388,6 +409,105 @@ def buildhistory(revisions, raw_diff):
     else:
         os.system('buildhistory-diff -p %s %s' % (bhdir, rev_window))
 
+def doc(pattern, exact):
+    if not is_lxml_available:
+        die('You need the lxml Python module for documentation.')
+
+    def remove_duplicate_spaces(text):
+        return re.sub(' +', ' ', text)
+
+    def refill_text(text):
+        lines = [ line for line in text.split('\n') ]
+        return(remove_duplicate_spaces(' '.join(lines)))
+
+    def parse_itemized_list(l):
+        text = []
+        for item in l.findall('listitem'):
+            text.append(parse_paragraph(item))
+        return '\n' + '\n'.join(text) + '\n'
+
+    def parse_children(elt, sep=''):
+        if elt.text:
+            return elt.text
+        else:
+            children = elt.getchildren()
+            if elt.tag in ['link', 'ulink'] and not children:
+                return elt.get('url')
+            else:
+                return sep.join(map(parse_paragraph, children))
+
+    def parse_paragraph(p):
+        text = []
+        if p.text:
+            text.append(refill_text(p.text))
+        for elt in p:
+            if elt.tag == 'filename':
+                text.append('`%s`' % parse_children(elt))
+            elif elt.tag == 'listitem':
+                text.append('\n\n* %s' % parse_children(elt, sep='\n'))
+            elif elt.tag == 'itemizedlist':
+                parse_itemized_list(elt)
+            elif elt.tag == 'literallayout':
+                text.append('\n' + elt.text + '\n')
+            elif elt.tag in ['link', 'ulink']:
+                text.append(parse_children(elt))
+            else:
+                parse_paragraph(elt)
+            if elt.tail:
+                text.append(refill_text(elt.tail))
+        if text: # FIXME: this is a hack, should be fixed
+            return ''.join([text[0].lstrip()] + text[1:])
+        else:
+            return ''
+
+    def show_doc(var, doc):
+        print('\n=== ' + var)
+        print(doc)
+
+    doc_data_dir = os.path.join(YE_DIR, 'doc-data')
+    ref_variables_xml = os.path.join(doc_data_dir, 'ref-manual', 'ref-variables.xml')
+
+    # Check if we need to update documentation data
+    update_window = 7 * 24 * 3600 # 7 days
+    # We use documentation from master
+    doc_base_uri = 'https://git.yoctoproject.org/cgit/cgit.cgi/yocto-docs/plain/documentation'
+    if (not os.path.exists(ref_variables_xml) or
+        os.stat(ref_variables_xml).st_mtime < time.time() - update_window):
+        print('Updating documentation data...')
+        download_file('%s/poky.ent' % doc_base_uri,
+                      os.path.join(doc_data_dir, 'poky.ent'))
+        download_file('%s/ref-manual/ref-variables.xml' % doc_base_uri,
+                      ref_variables_xml)
+
+    tree = etree.parse(ref_variables_xml)
+    glossentries = tree.findall('//glossentry')
+    docs = {}
+
+    orig_pattern = pattern
+    if not exact:
+        pattern = '.*%s.*' % pattern
+
+    for e in glossentries:
+        glossterm = e.find('glossterm').text
+        if re.compile(pattern).match(glossterm):
+            glossdef = e.find('glossdef')
+            paragraphs = glossdef.findall('para')
+            text = []
+            for p in paragraphs:
+                text.append(parse_paragraph(p))
+            docs[glossterm] = '\n\n'.join(text)
+    if docs:
+        options = docs.keys()
+        if len(options) == 1:
+            show_doc(options[0], docs[options[0]])
+        elif sys.stdout.isatty():
+            choice, _ = prompt(options,
+                               lambda var: colorize(shorten_path(var),
+                                                    orig_pattern))
+            show_doc(options[choice], docs[options[choice]])
+        else:
+            for o in options:
+                print(o)
 
 def usage(exit_code=None, cmd=None):
     printer = None
@@ -464,6 +584,14 @@ bh [-d] <revisions back>
 buildhistory [-d] <revisions back>
     Show changes in buildhistory <revisions back> (a positive integer).
     If -d is given, show the raw git diff output.
+
+d [-e] <regex>
+doc [-e] <regex>
+    Search variable names in the reference manual that match the given
+    expression <regex> and show the documentation for the selected
+    match.  <regex> is case insensitive and implicitly surrounded by
+    '.*'.  -e disables the implicit use of '.*' around the given
+    <regex>.
 ''' % os.path.basename(sys.argv[0]))
     if exit_code is not None:
         sys.exit(exit_code)
@@ -495,7 +623,8 @@ def main(args):
         buildhistory(revisions, raw_diff)
     elif cmd in ['f', 'find', 'v', 'view', 'e', 'edit', 'sf', 'sysroot-find',
                  'wd', 'workdir', 'pf', 'pkg-find', 'pv', 'pkg-view',
-                 'pi', 'pkg-info', 'l', 'log', 'r', 'run', 'g', 'grep']:
+                 'pi', 'pkg-info', 'l', 'log', 'r', 'run', 'g', 'grep',
+                 'd', 'doc']:
         exact = False
         if '-e' in cmd_args:
             exact = True
@@ -531,6 +660,8 @@ def main(args):
                 check_builddir()
                 if os.path.isdir(os.path.join(BUILDDIR, 'tmp', 'work')):
                     show_workdir(pattern, exact)
+            elif cmd in ['d', 'doc']:
+                doc(pattern, exact)
             elif cmd in ['pf', 'pkg-find', 'pv', 'pkg-view', 'pi', 'pkg-info']:
                 check_builddir()
                 deploy_dir = os.path.join(BUILDDIR, 'tmp', 'deploy')
