@@ -592,6 +592,12 @@ doc [-e] <regex>
     match.  <regex> is case insensitive and implicitly surrounded by
     '.*'.  -e disables the implicit use of '.*' around the given
     <regex>.
+
+x <recipe> <variable>
+expand <recipe> <variable>
+    Expand BitBake's variable <variable> in the context of <recipe> and
+    show the final value and the recursive expansion of all variables
+    and expressions involved.
 ''' % os.path.basename(sys.argv[0]))
     if exit_code is not None:
         sys.exit(exit_code)
@@ -621,6 +627,12 @@ def main(args):
         if revisions < 0:
             die('The argument to -d must be a positive integer.')
         buildhistory(revisions, raw_diff)
+    elif cmd in ['x', 'expand']:
+        if len(cmd_args) != 2:
+            usage(1)
+        else:
+            expand_mod = __import__('bb-expand-vars')
+            expand_mod.show_var_expansions(cmd_args[0], cmd_args[1])
     elif cmd in ['f', 'find', 'v', 'view', 'e', 'edit', 'sf', 'sysroot-find',
                  'wd', 'workdir', 'pf', 'pkg-find', 'pv', 'pkg-view',
                  'pi', 'pkg-info', 'l', 'log', 'r', 'run', 'g', 'grep',
