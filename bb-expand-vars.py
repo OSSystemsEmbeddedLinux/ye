@@ -90,26 +90,6 @@ class Tinfoil(bb.tinfoil.Tinfoil):
 
         self.taskdata.add_unresolved(self.localdata, self.cache_data)
 
-    def rec_get_dependees(self, targetid, depth=0, seen=None):
-        if seen is None:
-            seen = set()
-
-        for dependee_fnid, dependee_id in self.get_dependees(targetid, seen):
-            yield dependee_id, depth
-
-            for _id, _depth in self.rec_get_dependees(dependee_id, depth+1, seen):
-                yield _id, _depth
-
-    def get_dependees(self, targetid, seen):
-        dep_fnids = self.taskdata.get_dependees(targetid)
-        for dep_fnid in dep_fnids:
-            if dep_fnid in seen:
-                continue
-            seen.add(dep_fnid)
-            for target in self.taskdata.build_targets:
-                if dep_fnid in self.taskdata.build_targets[target]:
-                    yield dep_fnid, target
-
     def get_buildid(self, target):
         if not self.taskdata.have_build_target(target):
             if target in self.cooker.recipecache.ignored_dependencies:
