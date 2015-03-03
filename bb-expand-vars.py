@@ -213,7 +213,10 @@ def expand_vars(metadata, expr, indent):
         name = var_name(var)
         val = None
         if name.startswith('@'):
-            val = eval(name[1:], {'d': metadata})
+            try:
+                val = eval(name[1:], {'d': metadata})
+            except:
+                val = '<could not expand>'
         else:
             val = metadata.getVar(name)
         print '%s %s ==> %s' % (' ' * indent, name, val)
