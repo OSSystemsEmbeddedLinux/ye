@@ -391,11 +391,18 @@ def grep(args, actions):
             match = results[choice]
         else:
             match = results[0]
+        actions = None
+        if shortcut == 'v':
+            actions = [view_action]
+        elif shortcut == 'e':
+            actions = [edit_action]
+        else:
+            actions = [view_action, edit_action]
         file = match.split(':')[0] # let's hope filenames don't contain ':'
         return find(file,
                     os.path.join(find_yocto_root(), 'sources'),
                     False,
-                    [view_action, edit_action])
+                    actions)
     else:
         return results
 
