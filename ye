@@ -515,6 +515,8 @@ def doc(pattern, exact):
         else:
             for o in options:
                 print(o)
+    else:
+        die('No documentation entry for "%s".' % orig_pattern)
 
 def usage(exit_code=None, cmd=None):
     printer = None
