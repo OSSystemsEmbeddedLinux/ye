@@ -291,10 +291,10 @@ def print_matches(matches):
     if matches:
         if matches.__class__.__name__ == 'list':
             for match in matches:
-                print(match)
+                print(match.encode(encoding))
         else:
             # a string
-            print(matches)
+            print(matches.encode(encoding))
 
 
 def pkg_view(file):
