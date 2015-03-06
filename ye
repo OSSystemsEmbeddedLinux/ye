@@ -316,6 +316,12 @@ def pkg_info(file):
     else:
         die("ERROR: unsupported package file extension: %s" % ext)
 
+def human_readable_gcc_calls(file):
+    formatter = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                             'format-gcc-calls.py')
+    os.system('python %s "%s" | less' % (formatter, file))
+
+human_readable_gcc_calls_action = ('View', 'v', human_readable_gcc_calls)
 
 view_action = ('View', 'v', lambda file: os.system(YE_PAGER % file))
 
@@ -326,7 +332,7 @@ pkg_view_action = ('View', 'v', pkg_view)
 pkg_info_action = ('Info', 'i', pkg_info)
 
 
-def list_temp_files(file_type, recipe_pattern, log_pattern, exact):
+def list_temp_files(file_type, recipe_pattern, log_pattern, exact, raw):
     wds = find_workdir(recipe_pattern, exact)
     if not wds:
         sys.exit(1)
@@ -359,16 +365,19 @@ def list_temp_files(file_type, recipe_pattern, log_pattern, exact):
         else:
             log = logs[0]
         print('=== %s' % log)
-        view_action[2](log)
+        if raw:
+            view_action[2](log)
+        else:
+            human_readable_gcc_calls_action[2](log)
         print(log_dir)
 
 
-def list_logs(recipe_pattern, log_pattern, exact):
-    list_temp_files('log', recipe_pattern, log_pattern, exact)
+def list_logs(recipe_pattern, log_pattern, exact, raw):
+    list_temp_files('log', recipe_pattern, log_pattern, exact, raw)
 
 
 def list_run_scripts(recipe_pattern, log_pattern, exact):
-    list_temp_files('run', recipe_pattern, log_pattern, exact)
+    list_temp_files('run', recipe_pattern, log_pattern, exact, True)
 
 
 def grep(args, actions):
@@ -573,11 +582,13 @@ workdir [-e] <regex>
     Locate the Yocto Project's workdir for <regex>.  <regex> is
     implicitly surrounded by '.*', unless -e is provided.
 
-l [-e] <recipe pattern> <log pattern>
-log [-e] <recipe pattern> <log pattern>
+l [-e] [-H] <recipe pattern> <log pattern>
+log [-e] [-H] <recipe pattern> <log pattern>
     Show the log files for <recipe>.  -e is only applied to
     <recipe pattern>.  <log pattern> is always implicitly surrounded
-    by '.*'.
+    by '.*'.  If -H ("human readable") is given on the command line,
+    ye will try to make the lines that contain calls to gcc/g++ look
+    more readable.
 
 r [-e] <recipe pattern> <run script pattern>
 run [-e] <recipe pattern> <run script pattern>
@@ -647,9 +658,13 @@ def main(args):
                  'pi', 'pkg-info', 'l', 'log', 'r', 'run', 'g', 'grep',
                  'd', 'doc']:
         exact = False
+        raw = True
         if '-e' in cmd_args:
             exact = True
             cmd_args.remove('-e')
+        if '-H' in cmd_args:
+            raw = False
+            cmd_args.remove('-H')
         if len(cmd_args) < 1:
             usage(1)
         else:
@@ -710,7 +725,7 @@ def main(args):
                 if len(cmd_args) > 1:
                     log_pattern = cmd_args[1]
                 if cmd in ['l', 'log']:
-                    list_logs(pattern, log_pattern, exact)
+                    list_logs(pattern, log_pattern, exact, raw)
                 else:
                     list_run_scripts(pattern, log_pattern, exact)
         else: usage(1)
