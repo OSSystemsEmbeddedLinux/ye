@@ -651,7 +651,9 @@ def main(args):
         if len(cmd_args) != 2:
             usage(1)
         else:
+            check_builddir()
             expand_mod = __import__('bb-expand-vars')
+            os.chdir(BUILDDIR)
             expand_mod.show_var_expansions(cmd_args[0], cmd_args[1])
     elif cmd in ['f', 'find', 'v', 'view', 'e', 'edit', 'sf', 'sysroot-find',
                  'wd', 'workdir', 'pf', 'pkg-find', 'pv', 'pkg-view',
