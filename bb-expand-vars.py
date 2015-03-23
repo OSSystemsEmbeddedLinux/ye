@@ -200,27 +200,115 @@ def sigterm_exception(signum, stackframe):
 
 ###### end of bbcmd
 
-def parse_vars(expr):
-    return re.compile('\\$\\{[^\\}]+}', re.MULTILINE).findall(expr)
+# For printing indented expression expansions
+indent_step = 4
 
-def var_name(var):
-    # Given ${FOO}, return FOO
-    return var[2:-1]
+class BBVar():
+    def __init__(self, name):
+        self.name = name
 
-def expand_vars(metadata, expr, indent):
-    vars = parse_vars(expr)
-    for var in vars:
-        name = var_name(var)
-        val = None
-        if name.startswith('@'):
-            try:
-                val = eval(name[1:], {'d': metadata})
-            except:
-                val = '<could not expand>'
+    def __repr__(self):
+        return 'BBVAR<' + str(self.name) + '>'
+
+def tokenize_expr(expr):
+    def next(pos, expr):
+        next_pos = pos + 1
+        if next_pos < len(expr):
+            return expr[next_pos]
+        return None
+    tokens = []
+    token = ''
+    depth = 0
+    for charno, char in enumerate(expr):
+        if char == '$' and next(charno, expr) == '{':
+            if token and depth == 0:
+                tokens.append(token)
+                token = ''
+            depth += 1
+        if char == '}':
+            if depth == 1:
+                tokens.append(token + char)
+                token = ''
+            else:
+                token += char
+            depth -= 1
         else:
-            val = metadata.getVar(name)
-        print '%s %s ==> %s' % (' ' * indent, name, val)
-        expand_vars(metadata, val, indent + 4)
+            token += char
+    if depth != 0:
+        raise()
+    if token:
+        tokens.append(token)
+    return tokens
+
+def parse_expr(expr):
+    if expr[0] == '$':
+        return BBVar(map(parse_expr, tokenize_expr(expr[2:-1])))
+    else:
+        return expr
+
+def parse_exprs(exprs):
+    return map(parse_expr, exprs)
+
+def unparse_expr(expr):
+    if isinstance(expr, list):
+        return ''.join(map(unparse_expr, expr))
+    elif isinstance(expr, BBVar):
+        if isinstance(expr.name, list):
+            return ''.join(map(unparse_expr, expr.name))
+        else:
+            return expr.name
+    else:
+        return expr
+
+def show_expansion(var, val, indent):
+    margin_spacing = indent - indent_step
+    if margin_spacing == 0:
+        margin = ''
+    else:
+        margin = ' ' * margin_spacing
+    print('%s%s ==> %s' % (margin, unparse_expr(var), val))
+
+def get_var_val(var, metadata):
+    val = None
+    if var.startswith('@'):
+        try:
+            val = eval(var[1:], {'d': metadata})
+        except:
+            val = '<could not expand>'
+    else:
+        val = metadata.getVar(var)
+    return val
+
+def expand_var(var, metadata, indent):
+    next_indent = indent + indent_step
+    if isinstance(var, list):
+        return expand_var(''.join([ expand_var(v, metadata, next_indent) for v in var ]),
+                          metadata,
+                          next_indent)
+    else:
+        if isinstance(var, BBVar):
+            if isinstance(var.name, list):
+                val = get_var_val(expand_var(var.name, metadata, next_indent), metadata)
+                exprs = parse_exprs(tokenize_expr(val))
+                if filter(lambda e: isinstance(e, BBVar), exprs):
+                    show_expansion(var, val, next_indent)
+                    return expand_vars(exprs, metadata, next_indent)
+                else:
+                    show_expansion(var.name[0], val, next_indent)
+                    return val
+            else:
+                name = var.name
+                val = get_var_val(var.name, metadata)
+                show_expansion(name, val, next_indent)
+                return val
+        else:
+            return var
+
+def expand_vars(vars, metadata, indent=0):
+    return ''.join(map(lambda v: expand_var(v, metadata, indent), vars))
+
+def expand_expr(expr, metadata):
+    return expand_vars(parse_exprs(tokenize_expr(expr)), metadata)
 
 def show_var_expansions(recipe, var):
     ## tinfoil sets up log output for the bitbake loggers, but bb uses
@@ -244,8 +332,7 @@ def show_var_expansions(recipe, var):
         print '%s = %s' % (var, val)
 
         print '\n=== Expansion'
-        print '%s ==> %s' % (var, metadata.getVar(var))
-        expand_vars(metadata, metadata.getVar(var), 4)
+        expand_expr('${' + var + '}', metadata)
     else:
         sys.stderr.write('%s: no such variable.\n' % var)
         sys.exit(1)
