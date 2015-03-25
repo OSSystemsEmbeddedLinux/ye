@@ -391,6 +391,7 @@ def grep(args, actions):
     output = p.communicate()[0]
     results = output.decode(encoding).split('\n')[:-1] # the last line is always empty
     if sys.stdout.isatty():
+        shortcut = None
         if len(results) == 0:
             return None
         elif len(results) > 1:
