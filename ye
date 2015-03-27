@@ -257,8 +257,10 @@ def find(pattern, basedir, exact, actions):
                 actions[action][2](file)
             return file
     else:
-        return results
-
+        if len(results) == 1 and len(actions) == 1:
+            actions[0][2](results[0])
+        else:
+            return results
 
 def check_builddir():
     if not BUILDDIR:
