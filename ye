@@ -304,7 +304,7 @@ def pkg_view(file):
     if ext in ['.ipk', '.deb']:
         os.system("ar p %s data.tar.gz | tar tvzf -" % file)
     elif ext == '.rpm':
-        os.system("rpm -qlp %s" % file)
+        os.system("rpm -qlvp %s" % file)
     else:
         die("ERROR: unsupported package file extension: %s" % ext)
 
