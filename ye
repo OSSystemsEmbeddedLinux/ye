@@ -110,6 +110,10 @@ def colorize(text, pattern):
     else:
         return text
 
+def paginate(text):
+    p = subprocess.Popen(['less', '-FR'], stdin=subprocess.PIPE, close_fds=True)
+    p.communicate(text)
+
 def download_file(uri, output_file):
     dir = os.path.dirname(output_file)
     if dir and not os.path.exists(dir):
@@ -181,8 +185,10 @@ def prompt(options, option_formatter=lambda x: x, valid_shortcuts=[]):
     maxopts = len(options) - 1
 
     def inner_prompt():
+        text_options = ''
         for i, text in enumerate(options):
-            print('[%d] %s [%d]' % (i, option_formatter(text), i))
+            text_options += '[%d] %s [%d]\n' % (i, option_formatter(text), i)
+        paginate(text_options)
         print('Option (ENTER to cancel): ', end='')
         return input()
 
