@@ -253,8 +253,8 @@ be found, you'll get an error.
 
 For the pager, `ye` first checks if `YE_PAGER` is set in the
 environment.  If it is not set, it checks the `PAGER` environment
-variable.  If it is not set, it resorts to `nl -ba %s | less`.  If
-`nl` or `less` cannot be found, you'll get an error.
+variable.  If it is not set, it resorts to `less -N %s`.  If `less`
+cannot be found, you'll get an error.
 
 `%s` can be used as a placeholder for the file to act upon.
 

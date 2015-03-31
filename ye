@@ -78,7 +78,7 @@ if 'YE_PAGER' in os.environ:
 elif 'PAGER' in os.environ:
     YE_PAGER = os.environ['PAGER'] + ' %s'
 else:
-    YE_PAGER = 'nl -ba "%s" | less'
+    YE_PAGER = 'less -N "%s"'
 
 YE_EDITOR = None
 if 'YE_EDITOR' in os.environ:
