@@ -1,0 +1,90 @@
+# -*- shell-script -*-
+
+YE_PLUMBING_DIR=$HOME/.ye/plumbing
+
+yecd_error() {
+    echo "ERROR: " $* >&2
+}
+
+yecd_get_bb_var() {
+    if [ -e "$YE_PLUMBING_DIR/x" ]; then
+        awk -F= "/^$1/"' {print $2}' $YE_PLUMBING_DIR/x
+    else
+        yecd_error "yecd_get_bb_var: could not determine $1."
+    fi
+}
+
+ye() {
+
+    if [ "$1" != "cd" ]; then
+        `which ye` $*
+        return $?
+    fi
+
+    shift
+
+    if [ -z "$BUILDDIR" ]; then
+        yecd_error "BUILDDIR is not set"
+        return 1
+    fi
+
+    local dir_shortcut=$1
+
+    case $dir_shortcut in
+        "top"|"topdir")
+            cd $BUILDDIR/..
+            ;;
+        "wd"|"work"|"workdir")
+            local recipe=$2
+            if [ -z "$recipe" ]; then
+                cd $BUILDDIR/tmp/work/
+            else
+                ye plumbing wd "$recipe"
+                if [ -e "$YE_PLUMBING_DIR/wd" ]; then
+                    cd `cat $YE_PLUMBING_DIR/wd`
+                fi
+            fi
+            ;;
+        "bd"|"build"|"builddir")
+            cd $BUILDDIR
+            ;;
+        "sd"|"sysroot"|"sysrootdir")
+            ye plumbing x MACHINE
+            local machine=`yecd_get_bb_var MACHINE`
+            [ -n "$machine" ] && cd $BUILDDIR/tmp/sysroots/$machine
+            ;;
+        "src"|"sources")
+            local recipe=$2
+            if [ -z "$recipe" ]; then
+                cd $BUILDDIR/../sources
+            else
+                cd $BUILDDIR
+                ye plumbing find $recipe
+                cd `dirname $(cat $YE_PLUMBING_DIR/find)`
+            fi
+            ;;
+        "img"|"images")
+            ye plumbing x MACHINE
+            local machine=`yecd_get_bb_var MACHINE`
+            [ -n "$machine" ] && cd $BUILDDIR/tmp/deploy/images/$machine
+            ;;
+        "pkg"|"packages")
+            ye plumbing x IMAGE_PKGTYPE MACHINE
+            local pkg_type=`yecd_get_bb_var IMAGE_PKGTYPE`
+            local machine=`yecd_get_bb_var MACHINE`
+            [ -n "$pkg_type" ] && [ -n "$machine" ] && \
+                cd $BUILDDIR/tmp/deploy/$pkg_type/$machine
+            ;;
+        "manifest"|"manifests")
+            cd $BUILDDIR/../.repo/manifests
+            ;;
+        *)
+            if [ -z "$dir_shortcut" ]; then
+                cd $BUILDDIR
+            else
+                `which ye` -h
+                return $?
+            fi
+            ;;
+    esac
+}

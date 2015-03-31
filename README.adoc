@@ -96,6 +96,40 @@ expand <recipe> <variable>
     Expand BitBake's variable <variable> in the context of <recipe> and
     show the final value and the recursive expansion of all variables
     and expressions involved.
+
+cd [<dir shortcut>]
+    Change to <dir shortcut>.  The following <dir shortcut> options are
+    available:
+
+    top
+        Change to project's TOPDIR
+
+    wd [<recipe>]
+        Change to <recipe>'s WORKDIR or to BUILDDIR/tmp/deploy/work if
+        <recipe> is not provided
+
+    bd
+        Change to BUILDDIR
+
+    sd
+        Change to the sysroot directory for MACHINE
+
+    src [<recipe>]
+        Change to <recipes>'s source dir or to TOPDIR/sources
+        if <recipe> is not provided
+
+    img
+        Change to BUILDDIR/tmp/deploy/MACHINE/image/
+
+    pkg
+        Change to BUILDDIR/tmp/deploy/PKG_TYPE/image/
+
+    manifest
+        Change to TOPDIR/.repo/manifests
+
+    When called without arguments, ye cd will change to BUILDDIR.
+
+    To use this feature, source'ing the ye-cd shell helper is required.
 ....
 
 All the operations performed by the toplevel commands `find`,
@@ -139,8 +173,8 @@ contain a slash character, it means you probably want to search for a
 full or partial paths with at least one directory part.  In this case,
 `ye` will match the pattern agains the full file path.
 
-All commands, except `grep`, `buildhistory` and `expand`, accept a
-`-e` option, which indicates the search is to be _exact_.  Without
+All commands, except `grep`, `buildhistory`, `expand` and `cd`, accept
+a `-e` option, which indicates the search is to be _exact_.  Without
 this option `ye` will surround the provided pattern by `.*`, which
 means matching anything before and after the provided pattern (which
 will be matched against the filename or the full path, depending if
@@ -236,6 +270,8 @@ it should work with other recent Python 2.x versions and with Python
 
 For the `doc` command, the http://lxml.de/[lxml] module for Python is
 required.
+
+For the `cd` command, a Bourne-compatible shell is required.
 
 == License
 

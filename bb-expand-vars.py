@@ -310,7 +310,9 @@ def expand_vars(vars, metadata, indent=0):
 def expand_expr(expr, metadata):
     return expand_vars(parse_exprs(tokenize_expr(expr)), metadata)
 
-def show_var_expansions(recipe, var):
+def show_var_expansions(recipe, var, plumbing_mode=False):
+    # When plumbing_mode is truthy, var is a list of variables
+
     ## tinfoil sets up log output for the bitbake loggers, but bb uses
     ## a separate namespace at this time
     setup_log_handler(logging.getLogger('bb'))
@@ -325,7 +327,13 @@ def show_var_expansions(recipe, var):
     except:
         sys.exit(1)
 
-    val = metadata.getVar(var, True)
+    if plumbing_mode:
+        vars_vals = {}
+        for v in var:
+            vars_vals[v] = metadata.getVar(v, True)
+        return vars_vals
+    else:
+        val = metadata.getVar(var, True)
 
     if val is not None:
         print '=== Final value'

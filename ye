@@ -290,19 +290,38 @@ def find_workdir(pattern, exact):
     return results
 
 
-def show_workdir(pattern, exact):
-    for result in find_workdir(pattern, exact):
-        print(colorize(result, pattern))
+def show_workdir(pattern, exact, plumbing_mode=False):
+    results = find_workdir(pattern, exact)
+    if plumbing_mode:
+        len_results = len(results)
+        if len_results > 1:
+            choice, _ = prompt(results)
+            if choice:
+                write_plumbing_selection('wd', results[choice])
+        elif len_results == 1:
+            write_plumbing_selection('wd', results[0])
+        else:
+            write_plumbing_selection('wd', None)
+    else:
+        for result in results:
+            print(colorize(result, pattern))
 
 
-def print_matches(matches):
+def print_matches(matches, plumbing_cmd=None):
     if matches:
+        dest = None
+        if plumbing_cmd:
+            dest = open(os.path.join(YE_DIR, 'plumbing', plumbing_cmd), 'w')
+        else:
+            dest = sys.stdout
         if matches.__class__.__name__ == 'list':
             for match in matches:
-                print(match.encode(encoding))
+                dest.write(match.encode(encoding) + '\n')
         else:
             # a string
-            print(matches.encode(encoding))
+            dest.write(matches.encode(encoding) + '\n')
+        if plumbing_cmd:
+            dest.close()
 
 
 def pkg_view(file):
@@ -536,6 +555,75 @@ def doc(pattern, exact):
     else:
         die('No documentation entry for "%s".' % orig_pattern)
 
+
+def write_plumbing_selection(cmd, val):
+    plumbing_selection_dir = os.path.join(YE_DIR, 'plumbing')
+    cmd_file = os.path.join(plumbing_selection_dir, cmd)
+    if val:
+        if not os.path.isdir(plumbing_selection_dir):
+            os.makedirs(plumbing_selection_dir)
+        fd = open(cmd_file, 'w')
+        if isinstance(val, dict):
+            for var, value in val.items():
+                fd.write('%s=%s\n' % (var, value))
+        else:
+            print(val)
+            fd.write(val + '\n')
+        fd.close()
+    else:
+        if os.path.exists(cmd_file):
+            os.remove(cmd_file)
+
+
+def handle_plumbing(args):
+    '''Plumbing is a hack to make the `cd' command possible.  The ye-cd
+    script must be evaluated on the user environment to define a ye
+    shell function.  This function will check if the command (first
+    argument) is `cd' and will handle its arguments accordingly.  If
+    the command is not `cd' it will dispatch the command to ye.  In
+    case the command is `cd', the ye shell function may need some
+    information from ye -- that's why the "plumbing" mode exists.  In
+    the plumbing mode, ye will receive a command from the ye shell
+    function (plumbing <cdm> [<args>]) and will write the results to
+    YE_DIR/plumbing/<cmd>, so that the ye shell function can use them
+    upon ye's termination.
+    '''
+    if args:
+        cmd = args[0]
+        cmd_args = args[1:]
+        exact = False
+        if '-e' in cmd_args:
+            exact = True
+            cmd_args.remove('-e')
+        if cmd == 'wd':
+            if cmd_args:
+                if os.path.isdir(os.path.join(BUILDDIR, 'tmp', 'work')):
+                    show_workdir(cmd_args[0], exact, True)
+            else:
+                die('plumbing wd: missing argument.')
+        elif cmd == 'x':
+            if cmd_args:
+                expand_mod = __import__('bb-expand-vars')
+                os.chdir(BUILDDIR)
+                val = expand_mod.show_var_expansions('core-image-minimal',
+                                                     cmd_args,
+                                                     True)
+                if val:
+                    write_plumbing_selection('x', val)
+            else:
+                die('plumbing x: missing argument.')
+        elif cmd == 'find':
+            print_matches(find(cmd_args[0],
+                               os.path.join(find_yocto_root(), 'sources'),
+                               exact,
+                               [('Print', 'p', lambda file: print(file))]),
+                          plumbing_cmd=cmd)
+        else:
+            die('plumbing: invalid command: %s' % cmd)
+    else:
+        die('plumbing requires an argument.')
+
+
 def usage(exit_code=None, cmd=None):
     printer = None
     if exit_code is not None and exit_code != 0:
@@ -627,6 +715,40 @@ expand <recipe> <variable>
     Expand BitBake's variable <variable> in the context of <recipe> and
     show the final value and the recursive expansion of all variables
     and expressions involved.
+
+cd [<dir shortcut>]
+    Change to <dir shortcut>.  The following <dir shortcut> options are
+    available:
+
+    top
+        Change to project's TOPDIR
+
+    wd [<recipe>]
+        Change to <recipe>'s WORKDIR or to tmp/deploy/work if
+        <recipe> is not provided.
+
+    bd
+        Change to BUILDDIR
+
+    sd
+        Change to sysroot dir for MACHINE
+
+    src [<recipe>]
+        Change to <recipes>'s source dir or to the 'sources' dir
+        if <recipe> is not provided
+
+    img
+        Change to tmp/deploy/MACHINE/image/
+
+    pkg
+        Change to tmp/deploy/PKG_TYPE/image/
+
+    manifest
+        Change to TOPDIR/.repo/manifests
+
+    When called without arguments, ye cd will change to BUILDDIR.
+
+    To use this feature, source'ing the ye-cd shell helper is required.
 ''' % os.path.basename(sys.argv[0]))
     if exit_code is not None:
         sys.exit(exit_code)
@@ -640,7 +762,11 @@ def main(args):
     cmd = args[0]
     cmd_args = args[1:]
 
-    if cmd in ['bh', 'buildhistory']:
+    if cmd == 'cd':
+        yecd = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ye-cd')
+        die('To use this feature you need to evaluate %s on the current environment (e.g., . %s).' %
+            (yecd, yecd))
+    elif cmd in ['bh', 'buildhistory']:
         check_builddir()
         raw_diff = False
         if '-d' in cmd_args:
@@ -656,6 +782,8 @@ def main(args):
         if revisions < 0:
             die('The argument to -d must be a positive integer.')
         buildhistory(revisions, raw_diff)
+    elif cmd == 'plumbing':
+        handle_plumbing(cmd_args)
     elif cmd in ['x', 'expand']:
         if len(cmd_args) != 2:
             usage(1)
