@@ -441,8 +441,11 @@ def list_run_scripts(recipe_pattern, log_pattern, exact):
     list_temp_files('run', recipe_pattern, log_pattern, exact, True)
 
 
-def grep(args, actions):
-    p = subprocess.Popen(['repo', 'grep'] + args, stdout=subprocess.PIPE)
+def grep(args, actions, dir=None):
+    if dir:
+        p = subprocess.Popen(['grep', '-r'] + args + [dir], stdout=subprocess.PIPE)
+    else:
+        p = subprocess.Popen(['repo', 'grep'] + args, stdout=subprocess.PIPE)
     regex_pattern = [ arg for arg in args if not arg.startswith('-') ]
     if not regex_pattern:
         die('Could not determine the pattern for grep.')
@@ -751,6 +754,10 @@ g <args>
 grep <args>
     Run 'repo grep <args>'.
 
+sg <args>
+sysroot-grep <args>
+   Run 'grep -r <args> $BUILDDIR/tmp/sysroots/$MACHINE'.
+
 bh [-d] <revisions back>
 buildhistory [-d] <revisions back>
     Show changes in buildhistory <revisions back> (a positive integer).
@@ -849,7 +856,8 @@ def main(args):
     elif cmd in ['f', 'find', 'v', 'view', 'e', 'edit', 'sf', 'sysroot-find',
                  'wd', 'workdir', 'pf', 'pkg-find', 'pv', 'pkg-view',
                  'pi', 'pkg-info', 'px', 'pkg-extract', 'ps', 'pkg-scripts',
-                 'l', 'log', 'r', 'run', 'g', 'grep', 'd', 'doc']:
+                 'l', 'log', 'r', 'run', 'g', 'grep', 'sg', 'sysroot-grep',
+                 'd', 'doc']:
         exact = False
         raw = True
         from_control = False
@@ -869,6 +877,19 @@ def main(args):
         if cmd_args:
             if cmd in ['g', 'grep']:
                 print_matches(grep(cmd_args, [view_action, edit_action]))
+            elif cmd in ['sg', 'sysroot-grep']:
+                check_builddir()
+                expand_mod = __import__('bb-expand-vars')
+                os.chdir(BUILDDIR)
+                val = expand_mod.show_var_expansions('core-image-minimal',
+                                                     ['MACHINE'],
+                                                     True)
+                if val:
+                    machine = val['MACHINE']
+                else:
+                    die('Could not determine MACHINE.')
+                sysroot_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots', machine)
+                print_matches(grep(cmd_args, [view_action, edit_action], sysroot_dir))
             elif cmd in ['f', 'find', 'v', 'view', 'e', 'edit']:
                 actions = None
                 if cmd in ['v', 'view']:
