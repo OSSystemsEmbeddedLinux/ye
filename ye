@@ -344,6 +344,14 @@ def pkg_info(file):
         die("ERROR: unsupported package file extension: %s" % ext)
 
 
+def pkg_scripts(file):
+    ext = os.path.splitext(file)[1]
+    if ext in ['.ipk', '.deb']:
+        os.system("ar p %s control.tar.gz | tar tzf -" % file)
+    else:
+        die("ERROR: unsupported package file extension: %s" % ext)
+
+
 def pkg_extract(pkg_file, file, from_control):
     ext = os.path.splitext(pkg_file)[1]
     if ext in ['.ipk', '.deb']:
@@ -378,6 +386,8 @@ edit_action = ('Edit', 'e', lambda file: os.system(YE_EDITOR % file))
 pkg_view_action = ('View', 'v', pkg_view)
 
 pkg_info_action = ('Info', 'i', pkg_info)
+
+pkg_scripts_action = ('Scripts', 's', pkg_scripts)
 
 def pkg_extract_action(file, from_control):
     return ('Extract', 'x', lambda pkg: pkg_extract(pkg, file, from_control))
@@ -698,6 +708,13 @@ pkg-info [-e] <regex>
     Shortcut to pkg-find & info.  If multiple packages are found, a
     prompt for packages will be displayed (but not for actions).
 
+ps [-e] <regex>
+pkg-scripts [-e] <regex>
+    List scripts for package that matches <regex>.  In case of multiple
+    matches, ye will prompt for a specific package. <regex> is case
+    insensitive and implicitly surrounded by '.*'.  -e disables the
+    implicit use of '.*' around the given <regex>.
+
 px [-e] [-c] <regex> [<file>]
 pkg-extract [-e] [-c] <regex> [<file>]
     Extract package that matches <regex>.  In case of multiple matches,
@@ -831,8 +848,8 @@ def main(args):
             expand_mod.show_var_expansions(cmd_args[0], cmd_args[1])
     elif cmd in ['f', 'find', 'v', 'view', 'e', 'edit', 'sf', 'sysroot-find',
                  'wd', 'workdir', 'pf', 'pkg-find', 'pv', 'pkg-view',
-                 'pi', 'pkg-info', 'px', 'pkg-extract', 'l', 'log', 'r',
-                 'run', 'g', 'grep', 'd', 'doc']:
+                 'pi', 'pkg-info', 'px', 'pkg-extract', 'ps', 'pkg-scripts',
+                 'l', 'log', 'r', 'run', 'g', 'grep', 'd', 'doc']:
         exact = False
         raw = True
         from_control = False
@@ -879,7 +896,7 @@ def main(args):
             elif cmd in ['d', 'doc']:
                 doc(pattern, exact)
             elif cmd in ['pf', 'pkg-find', 'pv', 'pkg-view', 'pi', 'pkg-info',
-                         'px', 'pkg-extract']:
+                         'px', 'pkg-extract', 'ps', 'pkg-scripts']:
                 check_builddir()
                 deploy_dir = os.path.join(BUILDDIR, 'tmp', 'deploy')
                 pkg_dirs = [ os.path.join(deploy_dir, fmt) for fmt in ['deb', 'ipk', 'rpm'] ]
@@ -899,6 +916,8 @@ def main(args):
                     actions = [pkg_view_action]
                 elif cmd in ['pi', 'pkg-info']:
                     actions = [pkg_info_action]
+                elif cmd in ['ps', 'pkg-scripts']:
+                    actions = [pkg_scripts_action]
                 elif cmd in ['px', 'pkg-extract']:
                     if len(cmd_args) > 1:
                         file_to_extract = cmd_args[1]
@@ -906,6 +925,7 @@ def main(args):
                 else:
                     actions = [pkg_view_action,
                                pkg_info_action,
+                               pkg_scripts_action,
                                pkg_extract_action(file_to_extract, from_control)]
                 print_matches(find(pattern, pkg_dir, exact, actions))
             elif cmd in ['l', 'log', 'r', 'run']:

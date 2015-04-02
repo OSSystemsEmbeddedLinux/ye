@@ -55,6 +55,13 @@ pkg-info [-e] <regex>
     Shortcut to pkg-find & info.  If multiple packages are found, a
         prompt for packages will be displayed (but not for actions).
 
+ps [-e] <regex>
+pkg-scripts [-e] <regex>
+    List scripts for package that matches <regex>.  In case of multiple
+    matches, ye will prompt for a specific package. <regex> is case
+    insensitive and implicitly surrounded by '.*'.  -e disables the
+    implicit use of '.*' around the given <regex>.
+
 px [-e] [-c] <regex> [<file>]
 pkg-extract [-e] [-c] <regex> [<file>]
     Extract package that matches <regex>.  In case of multiple matches,
