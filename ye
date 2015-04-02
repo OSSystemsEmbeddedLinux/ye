@@ -854,7 +854,7 @@ def main(args):
                 actions = None
                 if cmd in ['pv', 'pkg-view']:
                     actions = [pkg_view_action]
-                elif cmd in ['pi', 'pkf-info']:
+                elif cmd in ['pi', 'pkg-info']:
                     actions = [pkg_info_action]
                 else:
                     actions = [pkg_view_action, pkg_info_action]
