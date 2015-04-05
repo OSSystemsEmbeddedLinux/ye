@@ -25,12 +25,12 @@ find [-e] <regex>
 v [-e] <regex>
 view [-e] <regex>
     Shortcut to find & view.  If multiple files are found, a prompt for
-        files will be displayed (but not for actions).
+    files will be displayed (but not for actions).
 
 e [-e] <regex>
 edit [-e] <regex>
     Shortcut to find & edit.  If multiple files are found, a prompt for
-        files will be displayed (but not for actions).
+    files will be displayed (but not for actions).
 
 sf [-e] <regex>
 sysroot-find [-e] <regex>
@@ -48,12 +48,12 @@ pkg-find [-e] <regex>
 pv [-e] <regex>
 pkg-view [-e] <regex>
     Shortcut to pkg-find & view.  If multiple packages are found, a
-        prompt for packages will be displayed (but not for actions).
+    prompt for packages will be displayed (but not for actions).
 
 pi [-e] <regex>
 pkg-info [-e] <regex>
     Shortcut to pkg-find & info.  If multiple packages are found, a
-        prompt for packages will be displayed (but not for actions).
+    prompt for packages will be displayed (but not for actions).
 
 ps [-e] <regex>
 pkg-scripts [-e] <regex>
