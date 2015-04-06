@@ -1,6 +1,7 @@
 # -*- shell-script -*-
 
 YE_PLUMBING_DIR=$HOME/.ye/plumbing
+YE_SCRIPT=`which ye`
 
 yecd_error() {
     echo "ERROR: " $* >&2
@@ -17,7 +18,7 @@ yecd_get_bb_var() {
 ye() {
 
     if [ "$1" != "cd" ]; then
-        `which ye` $*
+        $YE_SCRIPT $*
         return $?
     fi
 
@@ -39,7 +40,7 @@ ye() {
             if [ -z "$recipe" ]; then
                 cd $BUILDDIR/tmp/work/
             else
-                ye plumbing wd "$recipe"
+                $YE_SCRIPT plumbing wd "$recipe"
                 if [ -e "$YE_PLUMBING_DIR/wd" ]; then
                     cd `cat $YE_PLUMBING_DIR/wd`
                 fi
@@ -49,7 +50,7 @@ ye() {
             cd $BUILDDIR
             ;;
         "sd"|"sysroot"|"sysrootdir")
-            ye plumbing x MACHINE
+            $YE_SCRIPT plumbing x MACHINE
             local machine=`yecd_get_bb_var MACHINE`
             [ -n "$machine" ] && cd $BUILDDIR/tmp/sysroots/$machine
             ;;
@@ -59,17 +60,17 @@ ye() {
                 cd $BUILDDIR/../sources
             else
                 cd $BUILDDIR
-                ye plumbing find $recipe
+                $YE_SCRIPT plumbing find $recipe
                 cd `dirname $(cat $YE_PLUMBING_DIR/find)`
             fi
             ;;
         "img"|"images")
-            ye plumbing x MACHINE
+            $YE_SCRIPT plumbing x MACHINE
             local machine=`yecd_get_bb_var MACHINE`
             [ -n "$machine" ] && cd $BUILDDIR/tmp/deploy/images/$machine
             ;;
         "pkg"|"packages")
-            ye plumbing x IMAGE_PKGTYPE MACHINE
+            $YE_SCRIPT plumbing x IMAGE_PKGTYPE MACHINE
             local pkg_type=`yecd_get_bb_var IMAGE_PKGTYPE`
             local machine=`yecd_get_bb_var MACHINE`
             [ -n "$pkg_type" ] && [ -n "$machine" ] && \
@@ -82,7 +83,7 @@ ye() {
             if [ -z "$dir_shortcut" ]; then
                 cd $BUILDDIR
             else
-                `which ye` -h
+                $YE_SCRIPT -h
                 return $?
             fi
             ;;
