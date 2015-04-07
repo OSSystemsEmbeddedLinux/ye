@@ -68,10 +68,10 @@ pkg-extract [-e] [-c] <regex> [<file>]
     ye will prompt for a specific package. <regex> is case insensitive
     and implicitly surrounded by '.*'.  -e disables the implicit use
     of '.*' around the given <regex>.
-    if <file> is provided, ye will extract <file> only, otherwise the
-    whole package content will be extracted to the current directory.
-    <file> must match the exact file name in the package (usually
-    starts with ./).
+    If <file> is provided, ye will extract <file> only, otherwise the
+    whole package content will be extracted to a directory named after
+    the package filename (without extension).  <file> must match the exact
+    file name in the package (usually starts with ./).
     -c is specific to .deb and .ipk packages -- ye will extract files
     from the control.tar.gz tarball in packages.
 

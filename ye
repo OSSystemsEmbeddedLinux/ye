@@ -353,19 +353,24 @@ def pkg_scripts(file):
 
 
 def pkg_extract(pkg_file, file, from_control):
-    ext = os.path.splitext(pkg_file)[1]
+    out_dir, ext = os.path.splitext(pkg_file)
+    out_dir = os.path.basename(out_dir)
+    if os.path.exists(out_dir):
+        die("%s already exists.  Won't clobber.  Aborting." % out_dir)
+    os.makedirs(out_dir)
     if ext in ['.ipk', '.deb']:
         tarball = 'data.tar.gz'
         if from_control:
             tarball = 'control.tar.gz'
-        status = os.system("ar p %s %s | tar xzf - %s" % (pkg_file, tarball, file))
-        if not status and file:
-            print('Extracted to %s' % file)
+        status = os.system("ar p %s %s | tar xzf - %s -C %s" % (pkg_file, tarball, file, out_dir))
+        if not status:
+            print('Extracted to %s' % out_dir)
     elif ext == '.rpm':
         if is_program_available('rpm2cpio'):
+            os.chdir(out_dir)
             status = os.system("rpm2cpio %s | cpio -id %s" % (pkg_file, file))
-            if not status and file:
-                print('Extracted to %s' % file)
+            if not status:
+                print('Extracted to %s' % out_dir)
         else:
             die('ERROR: This operation requires the "rpm2cpio" program to be installed.')
     else:
@@ -724,10 +729,10 @@ pkg-extract [-e] [-c] <regex> [<file>]
     ye will prompt for a specific package. <regex> is case insensitive
     and implicitly surrounded by '.*'.  -e disables the implicit use
     of '.*' around the given <regex>.
-    if <file> is provided, ye will extract <file> only, otherwise the
-    whole package content will be extracted to the current directory.
-    <file> must match the exact file name in the package (usually
-    starts with ./).
+    If <file> is provided, ye will extract <file> only, otherwise the
+    whole package content will be extracted to a directory named after
+    the package filename (without extension).  <file> must match the exact
+    file name in the package (usually starts with ./).
     -c is specific to .deb and .ipk packages -- ye will extract files
     from the control.tar.gz tarball in packages.
 
