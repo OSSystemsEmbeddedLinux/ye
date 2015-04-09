@@ -137,7 +137,10 @@ def find_yocto_root():
             return False
         else:
             return inner_find(os.path.dirname(dir))
-    yocto_root = inner_find(os.getcwd())
+    if BUILDDIR:
+        yocto_root = inner_find(BUILDDIR)
+    else:
+        yocto_root = inner_find(os.getcwd())
     return yocto_root or die("ERROR: won't search from /.")
 
 
