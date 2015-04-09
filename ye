@@ -492,11 +492,12 @@ def grep(args, actions, dir=None):
         return results
 
 def git_log_grep(pattern, max_commits):
+    root_dir = find_yocto_root()
     repos = []
     repop = subprocess.Popen(['repo', 'list'], stdout=subprocess.PIPE)
     repos = repop.communicate()[0].strip()
     repos = [ line.split(':')[0].strip() for line in repos.decode(encoding).split('\n') ]
-    repo_paths = [ os.path.realpath(os.path.join(BUILDDIR, '..', repo)) for repo in repos ]
+    repo_paths = [ os.path.realpath(os.path.join(root_dir, repo)) for repo in repos ]
 
     results = {}
     for repo_path in repo_paths:
@@ -512,7 +513,7 @@ def git_log_grep(pattern, max_commits):
         if out:
             results[repo_path] = out.strip().split('\n')
 
-    sources_dir = os.path.realpath(os.path.join(BUILDDIR, '..', 'sources'))
+    sources_dir = os.path.realpath(os.path.join(root_dir, 'sources'))
     options = []
     for repo_path, commits in results.items():
         repo_dir = repo_path[len(sources_dir) + 1:] # drop sources_dir
