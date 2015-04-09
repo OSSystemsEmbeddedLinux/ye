@@ -493,6 +493,7 @@ def grep(args, actions, dir=None):
 
 def git_log_grep(pattern, max_commits):
     root_dir = find_yocto_root()
+    os.chdir(root_dir)
     repos = []
     repop = subprocess.Popen(['repo', 'list'], stdout=subprocess.PIPE)
     repos = repop.communicate()[0].strip()
