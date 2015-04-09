@@ -103,10 +103,13 @@ try:
 except NameError:
     pass
 
-def colorize(text, pattern):
+red = '\x1b[31;1m{}\x1b[0m'
+blue = '\x1b[34;1m{}\x1b[0m'
+
+def colorize(text, pattern, color=red):
     if sys.stdout.isatty():
         return re.sub(pattern,
-                      lambda m: '\x1b[31;1m{}\x1b[0m'.format(m.group()), text)
+                      lambda m: color.format(m.group()), text)
     else:
         return text
 
