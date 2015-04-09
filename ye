@@ -488,6 +488,56 @@ def grep(args, actions, dir=None):
     else:
         return results
 
+def git_log_grep(pattern, max_commits):
+    repos = []
+    repop = subprocess.Popen(['repo', 'list'], stdout=subprocess.PIPE)
+    repos = repop.communicate()[0].strip()
+    repos = [ line.split(':')[0].strip() for line in repos.decode(encoding).split('\n') ]
+    repo_paths = [ os.path.realpath(os.path.join(BUILDDIR, '..', repo)) for repo in repos ]
+
+    results = {}
+    for repo_path in repo_paths:
+        results[repo_path] = None
+        os.chdir(repo_path)
+        gitlog = subprocess.Popen(('git', 'log', '-n', str(max_commits), '--oneline'),
+                                  stdout=subprocess.PIPE)
+        grep = subprocess.Popen(('grep', pattern),
+                                stdin=gitlog.stdout,
+                                stdout=subprocess.PIPE)
+        gitlog.wait()
+        out = grep.communicate()[0]
+        if out:
+            results[repo_path] = out.strip().split('\n')
+
+    sources_dir = os.path.realpath(os.path.join(BUILDDIR, '..', 'sources'))
+    options = []
+    for repo_path, commits in results.items():
+        repo_dir = repo_path[len(sources_dir) + 1:] # drop sources_dir
+        if commits:
+            for commit in commits:
+                options.append('%s %s' % (repo_dir, commit))
+
+    if sys.stdout.isatty():
+        shortcut = None
+        if len(options) == 0:
+            return None
+        elif len(options) > 1:
+            choice, shortcut = prompt(options,
+                                      option_formatter=lambda o: colorize(colorize(o, pattern),
+                                                                          '^[^ ]+ ',
+                                                                          blue))
+            match = options[choice]
+        else:
+            match = options[0]
+
+        repo_dir, commit_hash = match.split()[0:2]
+        repo_path = os.path.join(sources_dir, repo_dir)
+        os.chdir(repo_path)
+        os.system('git show %s' % commit_hash)
+    else:
+        for option in options:
+            print(option)
+
 def buildhistory(revisions, raw_diff):
     bhdir = os.path.join(BUILDDIR, 'buildhistory')
     if not os.path.isdir(bhdir):
@@ -766,6 +816,12 @@ sg <args>
 sysroot-grep <args>
    Run 'grep -r <args> $BUILDDIR/tmp/sysroots/$MACHINE'.
 
+glg [-n <num commits> ] <regex>
+git-log-grep [-n <num commits> ] <regex>
+   Run "git log -n <num commits> --oneline | grep <regex>" on all the
+   repositories and prompt the user for the commit to show.
+   If -n is not provided, 1000 will be used.
+
 bh [-d] <revisions back>
 buildhistory [-d] <revisions back>
     Show changes in buildhistory <revisions back> (a positive integer).
@@ -865,10 +921,11 @@ def main(args):
                  'wd', 'workdir', 'pf', 'pkg-find', 'pv', 'pkg-view',
                  'pi', 'pkg-info', 'px', 'pkg-extract', 'ps', 'pkg-scripts',
                  'l', 'log', 'r', 'run', 'g', 'grep', 'sg', 'sysroot-grep',
-                 'd', 'doc']:
+                 'glg', 'git-log-grep', 'd', 'doc']:
         exact = False
         raw = True
         from_control = False
+        num_commits = 1000
         if '-e' in cmd_args:
             exact = True
             cmd_args.remove('-e')
@@ -878,6 +935,22 @@ def main(args):
         if '-c' in cmd_args:
             from_control = True
             cmd_args.remove('-c')
+        should_die = False
+        try:
+            npos = cmd_args.index('-n')
+            if len(cmd_args) >= npos:
+                try:
+                    num_commits = int(cmd_args[npos + 1])
+                    del cmd_args[npos] # remove -n
+                    del cmd_args[npos] # remove the numeric arg
+                except:
+                    should_die = True
+            else:
+                should_die = True
+        except:
+            pass
+        if should_die:
+            die("git-log-grep's -n parameter requires a positive integer as argument.")
         if len(cmd_args) < 1:
             usage(1)
         else:
@@ -885,6 +958,9 @@ def main(args):
         if cmd_args:
             if cmd in ['g', 'grep']:
                 print_matches(grep(cmd_args, [view_action, edit_action]))
+            elif cmd in ['glg', 'git-log-grep']:
+                check_builddir()
+                git_log_grep(pattern, num_commits)
             elif cmd in ['sg', 'sysroot-grep']:
                 check_builddir()
                 expand_mod = __import__('bb-expand-vars')
