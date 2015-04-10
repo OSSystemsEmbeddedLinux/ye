@@ -455,6 +455,8 @@ def list_run_scripts(recipe_pattern, log_pattern, exact):
 
 
 def grep(args, actions, case_sensitive, dir=None):
+    root_dir = find_yocto_root()
+    os.chdir(root_dir)
     if dir:
         p = subprocess.Popen(['grep', '-r'] + args + [dir], stdout=subprocess.PIPE)
     else:
