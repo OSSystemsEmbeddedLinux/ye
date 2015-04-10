@@ -117,7 +117,7 @@ def colorize(text, pattern, color=red, case_sensitive=True):
 
 def paginate(text):
     p = subprocess.Popen(['less', '-FR'], stdin=subprocess.PIPE, close_fds=True)
-    p.communicate(text)
+    p.communicate(text.encode(encoding))
 
 def download_file(uri, output_file):
     dir = os.path.dirname(output_file)
