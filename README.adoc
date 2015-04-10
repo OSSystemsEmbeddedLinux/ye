@@ -142,6 +142,9 @@ cd [<dir shortcut>]
     bd
         Change to BUILDDIR
 
+    bh
+        Change to the buildhistory directory
+
     sd
         Change to the sysroot directory for MACHINE
 

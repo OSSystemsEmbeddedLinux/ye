@@ -49,6 +49,9 @@ ye() {
         "bd"|"build"|"builddir")
             cd $BUILDDIR
             ;;
+        "bh"|"buildhistory")
+            cd $BUILDDIR/buildhistory
+            ;;
         "sd"|"sysroot"|"sysrootdir")
             $YE_SCRIPT plumbing x MACHINE
             local machine=`yecd_get_bb_var MACHINE`
