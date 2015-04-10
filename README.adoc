@@ -102,11 +102,12 @@ sg <args>
 sysroot-grep <args>
    Run 'grep -r <args> $BUILDDIR/tmp/sysroots/$MACHINE'.
 
-glg [-n <num commits> ] <regex>
-git-log-grep [-n <num commits> ] <regex>
+glg [-n <num commits> ] [-i] <regex>
+git-log-grep [-n <num commits> ] [-i] <regex>
    Run "git log -n <num commits> --oneline | grep <regex>" on all the
    repositories and prompt the user for the commit to show.
-   If -n is not provided, 1000 will be used.
+   If -n is not provided, 1000 will be used.  If -i is provided, search
+   will be case insensitive.
 
 bh [-d] <revisions back>
 buildhistory [-d] <revisions back>

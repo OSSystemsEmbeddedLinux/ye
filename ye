@@ -106,8 +106,10 @@ except NameError:
 red = '\x1b[31;1m{}\x1b[0m'
 blue = '\x1b[34;1m{}\x1b[0m'
 
-def colorize(text, pattern, color=red):
+def colorize(text, pattern, color=red, case_sensitive=True):
     if sys.stdout.isatty():
+        if not case_sensitive:
+            pattern = '(?i)' + pattern
         return re.sub(pattern,
                       lambda m: color.format(m.group()), text)
     else:
@@ -491,7 +493,7 @@ def grep(args, actions, dir=None):
     else:
         return results
 
-def git_log_grep(pattern, max_commits):
+def git_log_grep(pattern, max_commits, case_sensitive):
     root_dir = find_yocto_root()
     os.chdir(root_dir)
     repos = []
@@ -506,7 +508,11 @@ def git_log_grep(pattern, max_commits):
         os.chdir(repo_path)
         gitlog = subprocess.Popen(('git', 'log', '-n', str(max_commits), '--oneline'),
                                   stdout=subprocess.PIPE)
-        grep = subprocess.Popen(('grep', pattern),
+        if case_sensitive:
+            grep_cmd = ('grep', pattern)
+        else:
+            grep_cmd = ('grep', '-i', pattern)
+        grep = subprocess.Popen(grep_cmd,
                                 stdin=gitlog.stdout,
                                 stdout=subprocess.PIPE)
         gitlog.wait()
@@ -528,9 +534,12 @@ def git_log_grep(pattern, max_commits):
             return None
         elif len(options) > 1:
             choice, shortcut = prompt(options,
-                                      option_formatter=lambda o: colorize(colorize(o, pattern),
-                                                                          '^[^ ]+ ',
-                                                                          blue))
+                                      option_formatter =
+                                      lambda o: colorize(colorize(o,
+                                                                  pattern,
+                                                                  case_sensitive=case_sensitive),
+                                                         '^[^ ]+ ',
+                                                         blue))
             match = options[choice]
         else:
             match = options[0]
@@ -821,11 +830,12 @@ sg <args>
 sysroot-grep <args>
    Run 'grep -r <args> $BUILDDIR/tmp/sysroots/$MACHINE'.
 
-glg [-n <num commits> ] <regex>
-git-log-grep [-n <num commits> ] <regex>
+glg [-n <num commits> ] [-i] <regex>
+git-log-grep [-n <num commits> ] [-i] <regex>
    Run "git log -n <num commits> --oneline | grep <regex>" on all the
    repositories and prompt the user for the commit to show.
-   If -n is not provided, 1000 will be used.
+   If -n is not provided, 1000 will be used.  If -i is provided, search
+   will be case insensitive.
 
 bh [-d] <revisions back>
 buildhistory [-d] <revisions back>
@@ -931,6 +941,7 @@ def main(args):
         raw = True
         from_control = False
         num_commits = 1000
+        case_sensitive = True
         if '-e' in cmd_args:
             exact = True
             cmd_args.remove('-e')
@@ -940,6 +951,10 @@ def main(args):
         if '-c' in cmd_args:
             from_control = True
             cmd_args.remove('-c')
+        if '-i' in cmd_args:
+            case_sensitive = False
+            if cmd in ['glg', 'git-log-grep']:
+                cmd_args.remove('-i')
         should_die = False
         try:
             npos = cmd_args.index('-n')
@@ -965,7 +980,7 @@ def main(args):
                 print_matches(grep(cmd_args, [view_action, edit_action]))
             elif cmd in ['glg', 'git-log-grep']:
                 check_builddir()
-                git_log_grep(pattern, num_commits)
+                git_log_grep(pattern, num_commits, case_sensitive)
             elif cmd in ['sg', 'sysroot-grep']:
                 check_builddir()
                 expand_mod = __import__('bb-expand-vars')
