@@ -454,7 +454,7 @@ def list_run_scripts(recipe_pattern, log_pattern, exact):
     list_temp_files('run', recipe_pattern, log_pattern, exact, True)
 
 
-def grep(args, actions, dir=None):
+def grep(args, actions, case_sensitive, dir=None):
     if dir:
         p = subprocess.Popen(['grep', '-r'] + args + [dir], stdout=subprocess.PIPE)
     else:
@@ -473,7 +473,9 @@ def grep(args, actions, dir=None):
             return None
         elif len(results) > 1:
             choice, shortcut = prompt(results,
-                                      option_formatter=lambda o: colorize(o, regex_pattern),
+                                      option_formatter=lambda o: colorize(o,
+                                                                          regex_pattern,
+                                                                          case_sensitive=case_sensitive),
                                       valid_shortcuts=['v', 'e'])
             match = results[choice]
         else:
@@ -977,7 +979,9 @@ def main(args):
             pattern = cmd_args[0]
         if cmd_args:
             if cmd in ['g', 'grep']:
-                print_matches(grep(cmd_args, [view_action, edit_action]))
+                print_matches(grep(cmd_args,
+                                   [view_action, edit_action],
+                                   case_sensitive))
             elif cmd in ['glg', 'git-log-grep']:
                 check_builddir()
                 git_log_grep(pattern, num_commits, case_sensitive)
@@ -993,7 +997,10 @@ def main(args):
                 else:
                     die('Could not determine MACHINE.')
                 sysroot_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots', machine)
-                print_matches(grep(cmd_args, [view_action, edit_action], sysroot_dir))
+                print_matches(grep(cmd_args,
+                                   [view_action, edit_action],
+                                   case_sensitive,
+                                   sysroot_dir))
             elif cmd in ['f', 'find', 'v', 'view', 'e', 'edit']:
                 actions = None
                 if cmd in ['v', 'view']:
