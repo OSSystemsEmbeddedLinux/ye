@@ -18,7 +18,7 @@ yecd_get_bb_var() {
 ye() {
 
     if [ "$1" != "cd" ]; then
-        $YE_SCRIPT $*
+        $YE_SCRIPT "$@"
         return $?
     fi
 
