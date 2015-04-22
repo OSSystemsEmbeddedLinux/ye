@@ -491,7 +491,7 @@ def grep(args, actions, case_sensitive, dir=None):
             actions = [view_action, edit_action]
         file = match.split(':')[0] # let's hope filenames don't contain ':'
         return find(file,
-                    os.path.join(find_yocto_root(), 'sources'),
+                    dir or os.path.join(find_yocto_root(), 'sources'),
                     False,
                     actions)
     else:
