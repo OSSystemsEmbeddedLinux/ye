@@ -714,6 +714,8 @@ def handle_plumbing(args):
                     show_workdir(cmd_args[0], exact, True)
             else:
                 die('plumbing wd: missing argument.')
+        elif cmd == 'topdir':
+            print(find_yocto_root())
         elif cmd == 'x':
             if cmd_args:
                 expand_mod = __import__('bb-expand-vars')

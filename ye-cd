@@ -30,10 +30,12 @@ ye() {
     fi
 
     local dir_shortcut=$1
+    local topdir
 
     case $dir_shortcut in
         "top"|"topdir")
-            cd $BUILDDIR/..
+            topdir=`$YE_SCRIPT plumbing topdir`
+            [ $? -eq 0 ] && cd $topdir
             ;;
         "wd"|"work"|"workdir")
             local recipe=$2
@@ -60,7 +62,8 @@ ye() {
         "src"|"sources")
             local recipe=$2
             if [ -z "$recipe" ]; then
-                cd $BUILDDIR/../sources
+                topdir=`$YE_SCRIPT plumbing topdir`
+                [ $? -eq 0 ] && cd $topdir/sources
             else
                 cd $BUILDDIR
                 $YE_SCRIPT plumbing find $recipe
@@ -80,7 +83,8 @@ ye() {
                 cd $BUILDDIR/tmp/deploy/$pkg_type/$machine
             ;;
         "manifest"|"manifests")
-            cd $BUILDDIR/../.repo/manifests
+            topdir=`$YE_SCRIPT plumbing topdir`
+            [ $? -eq 0 ] && cd $topdir/.repo/manifests
             ;;
         *)
             if [ -z "$dir_shortcut" ]; then
