@@ -80,19 +80,19 @@ workdir [-e] <regex>
     Locate the Yocto Project's workdir for <regex>.  <regex> is
     implicitly surrounded by '.*', unless -e is provided.
 
-l [-e] [-H] <recipe pattern> <log pattern>
-log [-e] [-H] <recipe pattern> <log pattern>
+l [-e] [-H] <recipe pattern> [<log pattern>]
+log [-e] [-H] <recipe pattern> [<log pattern>]
     Show the log files for <recipe>.  -e is only applied to
     <recipe pattern>.  <log pattern> is always implicitly surrounded
-    by '.*'.  If -H ("human readable") is given on the command line,
-    ye will try to make the lines that contain calls to gcc/g++ look
-    more readable.
+    by '.*', if provided.  If -H ("human readable") is given on the
+    command line, ye will try to make the lines that contain calls
+    to gcc/g++ look more readable.
 
-r [-e] <recipe pattern> <run script pattern>
-run [-e] <recipe pattern> <run script pattern>
+r [-e] <recipe pattern> [<run script pattern>]
+run [-e] <recipe pattern> [<run script pattern>]
     Show the log files for <recipe>.  -e is only applied to
     <recipe pattern>.  <run script pattern> is always implicitly
-    surrounded by '.*'.
+    surrounded by '.*', if provided.
 
 g <args>
 grep <args>
