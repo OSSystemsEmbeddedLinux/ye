@@ -870,8 +870,8 @@ cd [<dir shortcut>]
         Change to project's TOPDIR
 
     wd [<recipe>]
-        Change to <recipe>'s WORKDIR or to tmp/deploy/work if
-        <recipe> is not provided.
+        Change to <recipe>'s WORKDIR or to BUILDDIR/tmp/deploy/work if
+        <recipe> is not provided
 
     bd
         Change to BUILDDIR
@@ -880,17 +880,17 @@ cd [<dir shortcut>]
         Change to the buildhistory directory
 
     sd
-        Change to sysroot dir for MACHINE
+        Change to the sysroot directory for MACHINE
 
     src [<recipe>]
-        Change to <recipes>'s source dir or to the 'sources' dir
+        Change to <recipes>'s source dir or to TOPDIR/sources
         if <recipe> is not provided
 
     img
-        Change to tmp/deploy/MACHINE/image/
+        Change to BUILDDIR/tmp/deploy/MACHINE/image/
 
     pkg
-        Change to tmp/deploy/PKG_TYPE/image/
+        Change to BUILDDIR/tmp/deploy/PKG_TYPE/image/
 
     manifest
         Change to TOPDIR/.repo/manifests
