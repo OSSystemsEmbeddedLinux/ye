@@ -1,3 +1,5 @@
+:toc:
+
 = ye (Yocto Explorer)
 
 == Introduction
@@ -7,7 +9,52 @@ the directory structure adopted by O.S. Systems to organize projects
 that use the Yocto Project.  `ye` provides means to quickly locate
 files and directories into projects' directory tree, and act on them.
 
-== Usage
+=== The directory layout assumed by ye
+
+The infrastructure adopted by O.S. Systems assumes the following
+directory layout:
+
+....
+<project>
+    .repo
+    <build dir>
+    setup-environment
+    sources
+....
+
+`<project>` is the root directory of the project you'll be working on.
+In it you'll initially find a `setup-environment` script, which is
+supposed to be source'd to set up the environment and will create
+`<build dir>`, and a `sources` directory, under which the source code
+of all projects (git repositories) will be stored.
+
+The directory layout in the `<build dir>` directory follows the
+standard layout as determined by the Yocto Project.
+
+=== Notes on arguments, environment and interactive behavior
+
+Most `ye` commands accept a regular expression as argument. Thus, it's
+possible that it will obtain multiple results.  In this case, if
+`ye`'s output is attached to a terminal (i.e., not a pipe or a file),
+it will run interactively, prompting users for a specific result.
+
+When running interactively, `ye` will paginate the output in case it
+doesn't fit the terminal window and will highlight matches in red on
+the output.
+
+Some commands expect the `BUILDDIR` environment variable to be set in
+the environment (because they have to run `bitbake` behind the scenes
+to find out things).  This variable is automatically set by the
+`setup-environment` script provided by O.S. Systems for Yocto
+Project-based projects.
+
+
+== Using ye
+
+This section will show in detail how to use `ye`.  The help message
+displayed by `ye` when invoked with the `--help` option can be seen
+below.  The next subsections provide more detailed information about
+each command.
 
 ....
 $ ye -h
@@ -166,63 +213,28 @@ cd [<dir shortcut>]
     To use this feature, source'ing the ye-cd shell helper is required.
 ....
 
-All the operations performed by the toplevel commands `find`,
-`sysroot-find`, `pkg-find`, `workdir`, `log` and `run` are related to
-locating files and directories in the project's directory structure.
 
-Each command handles a special case:
+=== Finding and operating on files
 
-`find`:: Search for files in the directory where the source files are
-stored (`<yocto root dir>/sources`).
+`ye` provides commands to locate files and operate on them.  Some
+commands are specific to some directories and some are specific to
+some file types (e.g., packages).  The following sections provide a
+more in-depth explanation about them.
 
-`sysroot-find`:: Search for files in the sysroots directories
-(`$BUILDDIR/tmp/sysroots`).
 
-`pkg-find`:: Search for package files in the deploy directory for
-packages (`$BUILDDIR/tmp/deploy/<pkg format>`).
+==== Finding and operating on files in the `sources` directory
 
-`workdir`:: Search for recipes' work directories in the work directory
-(`$BUILDDIR/tmp/work`).
+The `find` command (short: `f`) can be used to locate files under the
+`sources` directory. It's argument is a regular expression that will
+be matched against pathnames.  If the given regex contains `/`,
+matching is attempted on filenames only (not on dirnames).  If the
+given regex contains `/`, matching is attempted on the full path.
 
-`log`:: Search for task log files in the work directory
-(`$BUILDDIR/<arch>/<recipe>/<version>/temp`) for the recipes that
-match the given recipe pattern.
-
-`run`:: Search for task run script files in the work directory
-(`$BUILDDIR/<arch>/<recipe>/<version>/temp`) for the recipes that
-match the given recipe pattern.
-
-`grep`:: A wrapper around `repo grep`, which interactively prompts for
-actions on files that match the search patterns.
-
-`buildhistory`:: A wrapper for either `buildhistory-diff` or `git
-diff` in the buildhistory directory (when `-d` is provided).  The
-mandatory numeric argument is the number of revisions back the diff
-should be generated from.
-
-All commands, except `buildhistory` and `expand` use a regular
-expression pattern (`<regex>`) as argument, which is matched against
-filenames only if they don't contain a slash (`/`) character.  If they
-contain a slash character, it means you probably want to search for a
-full or partial paths with at least one directory part.  In this case,
-`ye` will match the pattern agains the full file path.
-
-All commands, except `grep`, `buildhistory`, `expand` and `cd`, accept
-a `-e` option, which indicates the search is to be _exact_.  Without
-this option `ye` will surround the provided pattern by `.*`, which
-means matching anything before and after the provided pattern (which
-will be matched against the filename or the full path, depending if
-the given pattern contains a slash or not).
-
-The matches will be highlighted in red on the output.
-
-Except for the `workdir`, `buildhistory` and `expand` commands, all
-`ye` commands are (or may be) interactive.  After locating files that
-match the given pattern, `ye` will prompt you to select one of the
-matches and, next, what to do with it.  In case the standard output is
-not a terminal (e.g., a file or a pipe), interactive commands will
-just print the results to the standard output (no prompt for action
-will be displayed).
+After locating files that match the given pattern, `ye` will prompt
+you to select one of the matches and, next, what to do with it.  In
+case the standard output is not a terminal (e.g., a file or a pipe),
+interactive commands will just print the results to the standard
+output (no prompt for action will be displayed).
 
 Example:
 
@@ -253,23 +265,529 @@ to select `flex.inc`, then `0 ENTER` to select the `View` action.  The
 shortcut would be `0v ENTER` in the file selection prompt.  For
 `Edit`, the shortcut would be `0e ENTER`.
 
-Shortcuts for actions may also be specified on the command line.  Some
-commands are actually shortcuts to `<command> -> <action>`:
+For cases you know in advance what to do with files (i.e., view or
+edit), `ye` provides commands to allow you to specify the action on
+the command line, so it won't prompt you for the action.  Those
+commands are `view` (short: `v`) and `edit` (short: `e`).  They are
+basically shortcuts to `find` -> `view` and `find` -> `edit`.
 
-`view` (`v`):: shortcut to `find -> view`
-`edit` (`e`):: shortcut to `find -> edit`
-`pkg-view` (`pv`):: shortcut to `pkg-find -> view`
-`pkg-info` (`pi`):: shortcut to `pkg-find -> info`
+The `view` and `edit` commands can be quite handy when you have a part
+of the full path to a file.  Here's an example use-case: you want to
+understand how the `qemuarm` machine configuration is built.  You
+start by looking at the content of `qemuarm.conf`:
 
-In case the pattern given as argument to `find` or `pkg-find` matches
-multiple files or packages, a prompt for selecting files will be
-displayed if the standard output is a terminal.  If the standard
-output is not a terminal, all matches will be printed.
+....
+$ ye v qemuarm.conf
+~/src/yocto/sources/poky/meta/conf/machine/qemuarm.conf
+      1 #@TYPE: Machine
+      2 #@NAME: arm_versatile_926ejs
+      3 #@DESCRIPTION: arm_versatile_926ejs
+      4 
+      5 require conf/machine/include/qemu.inc
+      6 require conf/machine/include/tune-arm926ejs.inc
+      7 #require conf/machine/include/tune-arm1136jf-s.inc
+      8 
+      9 KERNEL_IMAGETYPE = "zImage"
+     10 
+     11 SERIAL_CONSOLE = "115200 ttyAMA0"
+     12 
+/home/mario/src/yocto/sources/poky/meta/conf/machine/qemuarm.conf
+....
+
+You see `qemuarm.conf` includes `conf/machine/include/qemu.inc`.
+Since you may not know what layer ships
+`conf/machine/include/qemu.inc`, to see its contents you first would
+have to locate it, then you'd need to call a viewer passing as
+argument the path to the file you found.  With `ye`, you can just give
+it the partial path referenced in `qemuarm.conf`:
+
+....
+$ ye v conf/machine/include/qemu.inc
+~/src/yocto/sources/poky/meta/conf/machine/include/qemu.inc
+      1 PREFERRED_PROVIDER_virtual/xserver ?= "xserver-xorg"
+      2 PREFERRED_PROVIDER_virtual/egl ?= "mesa"
+      3 PREFERRED_PROVIDER_virtual/libgl ?= "mesa"
+      4 PREFERRED_PROVIDER_virtual/libgles1 ?= "mesa"
+      5 PREFERRED_PROVIDER_virtual/libgles2 ?= "mesa"
+      6 
+      7 XSERVER ?= "xserver-xorg \
+      ...
+....
+
+`ye` will locate and display the file in a single step.  If it finds
+multiple results for `conf/machine/include/qemu.inc` it'll prompt you
+for the one you really want to see.
+
+
+==== Finding and displaying files in the `sysroots` directories
+
+The `sysroot-find` (short: `sf`) command is pretty much equivalent to
+the `find` command, except it locates files under the sysroots
+directory (`<build dir>/tmp/sysroots`).
+
+
+==== Finding and operating on files in the `deploy` directory (for packages)
+
+The `pkg-find` (short: `pf`) command is equivalent to the `find`
+command, except it locates files under the deploy directory for
+packages (`<build dir>/tmp/deploy/<package type>`).  `ye` supports the
+most common package formats generated by Yocto Project: `.ipk`, `.deb`
+and `.rpm`.
+
+The actions for packages are different from the `find` command.  `ye`
+supports the following actions on packages:
+
+`view`:: show the package contents
+
+`info`:: show the package metadata
+
+`scripts`:: list package scripts (.e.g., `postinstall`, `postrm`)
+
+`extract`:: extract package contents to a directory named after the
+package filename
+
+Just like the `view` and `edit` counterparts to the `find` command,
+`ye` provides `pkg-view` (short: `pv`), `pkg-info` (short: `pi`),
+`pkg-scripts` (short: `ps`) and `pkg-extract` (short: `px`) command
+line shortcuts to the corresponding actions.
+
+Examples:
+
+....
+$ ye pf busybox_
+~/yocto/build/tmp/deploy/ipk/cortexa9hf-vfp-neon/busybox_1.22.1-r32.5_cortexa9hf-vfp-neon.ipk
+[v] View
+[i] Info
+[s] Scripts
+[x] Extract
+Option (ENTER to cancel): v
+drwxrwxrwx root/root         0 2015-04-17 11:50 ./
+drwxr-xr-x root/root         0 2015-04-17 11:50 ./etc/
+-rw-r--r-- root/root       108 2015-04-17 11:50 ./etc/busybox.links.suid
+-rw-r--r-- root/root      2217 2015-04-17 11:50 ./etc/busybox.links.nosuid
+drwxr-xr-x root/root         0 2015-04-17 11:50 ./bin/
+-rwxr-xr-x root/root    544012 2015-04-17 11:50 ./bin/busybox.nosuid
+-rwsr-xr-x root/root     52804 2015-04-17 11:50 ./bin/busybox.suid
+lrwxrwxrwx root/root         0 2015-04-17 11:50 ./bin/busybox -> busybox.nosuid
+lrwxrwxrwx root/root         0 2015-04-17 11:50 ./bin/sh -> busybox.nosuid
+/home/mario/yocto/build/tmp/deploy/ipk/cortexa9hf-vfp-neon/busybox_1.22.1-r32.5_cortexa9hf-vfp-neon.ipk
+....
+
+....
+$ ye pi flex_
+~/yocto/build/tmp/deploy/ipk/cortexa9hf-vfp-neon/flex_2.5.39-r0.3_cortexa9hf-vfp-neon.ipk
+Package: flex
+Version: 2.5.39-r0.3
+Description: Flex (The Fast Lexical Analyzer)
+ Flex is a fast lexical analyser generator.  Flex is a tool for generating
+ programs that recognize lexical patterns in text.
+Section: devel
+Priority: optional
+Maintainer: O.S. Systems Software LTDA. <contato@ossystems.com.br>
+License: BSD
+Architecture: cortexa9hf-vfp-neon
+OE: flex
+Homepage: http://sourceforge.net/projects/flex/
+Depends: m4, libc6 (>= 2.20)
+Source: http://downloads.sourceforge.net/flex/flex-2.5.39.tar.bz2 file://run-ptest file://do_not_create_pdf_doc.patch
+/home/mario/yocto/build/tmp/deploy/ipk/cortexa9hf-vfp-neon/flex_2.5.39-r0.3_cortexa9hf-vfp-neon.ipk
+....
+
+
+TIP: If you want to see the contents of the "main" package generated
+by a recipe (i.e., not `-dev`, `-dbg`, `-locale` etc.), you can append
+`\_` to the package name.  So, instead of `flex`, you can use `flex_`
+and `ye` won't match `flex-dev`, for example.
+
+
+=== Locating the work directory for recipes
+
+The `workdir` command (short: `wd`) will print the work directory for
+the given recipe regular expression pattern.  Like the other commands
+that deal with regular expressions, `workdir` implicitly surrounds the
+given regular expression pattern by `.*`, unless the `-e` option is
+provided.
+
+Example:
+
+....
+$ ye wd busybox
+/home/mario/yocto/build/tmp/work/cortexa9hf-vfp-neon-oel-linux-gnueabi/busybox
+....
+
+
+=== Viewing log files and scripts
+
+Upon processing recipes, BitBake writes log files and scripts to the
+directory where it processes recipes.  Log files are prefixed by
+`log.` and scripts are prefixed by `run.`:
+
+`run.<task>`:: shows the code that was run to process `<task>`
+
+`log.<task>`:: shows the output of the execution of `run.<task>`
+
+`ye` provides commands to display the contents of log files and
+scripts: `log` (short: `l`) and `run` (short: `r`).
+
+Both use as first argument a regex to be matched against recipe names.
+The second argument (optional), is a regex to be matched against log
+filenames or scripts.  If the second argument is not provided, `ye`
+will list all log files or scripts and prompt for the one you want to
+see.
+
+Both commands accept a `-e` option to indicate that the recipe regex
+should not be automatically surrounded by `.*`.
+
+Examples:
+
+....
+$ ye r base-files
+=== Showing run scripts for base-files
+[0] run.do_packagedata [0]
+[1] run.do_package_write_ipk [1]
+[2] run.do_fetch [2]
+[3] run.do_install [3]
+[4] run.do_unpack [4]
+[5] run.do_populate_sysroot [5]
+[6] run.do_patch [6]
+[7] run.do_package [7]
+[8] run.do_prepare_copyleft_sources [8]
+[9] run.do_configure [9]
+[10] run.do_populate_lic [10]
+[11] run.do_compile [11]
+[12] run.do_package_qa [12]
+Option (ENTER to cancel): 11
+      1 #!/bin/sh
+      2 
+      3 # Emit a useful diagnostic if something fails:
+      4 bb_exit_handler() {
+      5     ret=$?
+      ...
+....
+
+....
+$ ye l base-files
+=== Showing logs for base-files
+[0] log.do_package_qa [0]
+[1] log.do_unpack [1]
+[2] log.do_configure [2]
+[3] log.do_prepare_copyleft_sources [3]
+[4] log.do_fetch [4]
+[5] log.do_package [5]
+[6] log.do_populate_sysroot [6]
+[7] log.do_patch [7]
+[8] log.do_packagedata [8]
+[9] log.do_compile [9]
+[10] log.do_install [10]
+[11] log.do_populate_lic [11]
+[12] log.do_package_write_ipk [12]
+Option (ENTER to cancel): 11
+      1 DEBUG: Executing python function sstate_task_prefunc
+      2 DEBUG: Python function sstate_task_prefunc finished
+      ...
+....
+
+
+....
+$ ye r base-files pack
+=== Showing run scripts for base-files
+[0] run.do_packagedata [0]
+[1] run.do_package_write_ipk [1]
+[2] run.do_unpack [2]
+[3] run.do_package [3]
+[4] run.do_package_qa [4]
+Option (ENTER to cancel): 4
+      1 def do_package_qa(d):
+      2     import subprocess
+      3     import oe.packagedata
+      4 
+      ...
+....
+
+The `log` command also handles the `-H` option, which tries to make
+compiler command lines more readable (and numbers them).  See some
+examples below:
+
+Without `-H`:
+
+....
+$ ye l busybox compile
+=== Showing logs for busybox
+[0] log.do_compile_ptest_base [0]
+[1] log.do_compile [1]
+Option (ENTER to cancel): 1
+   ...
+   1118   gcc -Wp,-MD,applets/.applet_tables.d  -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer       -o applets/applet_tables applets/applet_tables.c
+   ...
+....
+
+With `-H`
+
+....
+$ ye l -H busybox compile
+=== Showing logs for busybox
+[0] log.do_compile_ptest_base [0]
+[1] log.do_compile [1]
+Option (ENTER to cancel): 1
+...
+--------------[ GCC call 2 ]----------------------
+gcc
+  -Wp,-MD,applets/.applet_tables.d
+  -Wall
+  -Wstrict-prototypes
+  -O2
+  -fomit-frame-pointer
+  -o applets/applet_tables
+  applets/applet_tables.c
+...
+....
+
+
+=== Finding text (_grepping_)
+
+`ye` provides commands to locate text in file contents and on summary
+lines of commit messages.  The next subsections show these commands in
+detail.
+
+==== Finding text in source files
+
+The `grep` command is a thin wrapper around `repo grep` (`repo` is the
+tool used by O.S. Systems to manage multiple git repositories -- see
+the http://doc.ossystems.com.br/managing-platforms.html[Managing
+platforms based on the Yocto Project] document for more information).
+Basically, `repo grep <arguments>` will run `git grep <arguments>` on
+each repository (in the `sources` directory) which is part of the
+project.
+
+The `grep` command will run `repo grep` plus the arguments provided on
+the command line (any valid argument for `git grep`) and will prompt
+you to select one of the matches, then the action to apply on the
+selected file.  In case of a single match, you'll be only prompted for
+the action.
+
+Example:
+
+....
+$ ye g -i libfoo
+[0] sources/meta-openembedded/meta-oe/recipes-connectivity/samba/samba-3.6.24/waf-as-source.patch:+             """example:  bld.symlink_as('${PREFIX}/lib/libfoo.so', 'libfoo.so.1.2.3') """ [0]
+[1] sources/meta-openembedded/meta-oe/recipes-connectivity/samba/samba-3.6.24/waf-as-source.patch:+     libfoo.so is installed as libfoo.so.1.2.3 [1]
+[2] sources/poky/meta/classes/package.bbclass:            # /opt/abc/lib/libfoo.so.1 and contains /usr/bin/abc depending on system library libfoo.so.1 [2]
+[3] sources/poky/meta/recipes-core/glibc/glibc/eglibc-install-pic-archives.patch: #     $(inst_libdir)/libfoo.so        -- for linking, symlink or ld script [3]
+[4] sources/poky/meta/recipes-core/glibc/glibc/eglibc-install-pic-archives.patch: #     $(inst_slibdir)/libfoo.so.NN    -- for loading by SONAME, symlink [4]
+Option (ENTER to cancel): 2v
+      1 #
+      2 # Packaging process
+      3 #
+      4 # Executive summary: This class iterates over the functions listed in PACKAGEFUNCS
+      ...
+....
+
+
+==== Finding text in files in the sysroot directory
+
+The `sysroot-grep` (short: `sg`) command is similar to the `grep`
+command, but instead of searching for matches in the `sources`
+directory, it recursively searches for matches in the `sysroot`
+directory (`<build dir>/tmp/sysroots/<machine>`, specifically).
+
+Example:
+
+....
+$ ye sg -i '<libfoo\.a>'
+Parsing recipes..done.
+[0] /home/mario/src/reach/dizzy/build/tmp/sysroots/g2h-solo-3/usr/lib/perl/ptest/lib/ExtUtils/Liblist.pm:you are using GCC, it gets translated to C<libfoo.a>, but for other win32 [0]
+[1] /home/mario/src/reach/dizzy/build/tmp/sysroots/g2h-solo-3/usr/lib/perl/ptest/cpan/ExtUtils-MakeMaker/lib/ExtUtils/Liblist.pm:you are using GCC, it gets translated to C<libfoo.a>, but for other win32 [1]
+[2] /home/mario/src/reach/dizzy/build/tmp/sysroots/g2h-solo-3/usr/lib/perl/5.20.0/ExtUtils/Liblist.pm:you are using GCC, it gets translated to C<libfoo.a>, but for other win32 [2]
+Option (ENTER to cancel): 1v
+      1 package ExtUtils::Liblist;
+      2 
+      3 use strict;
+      4 
+      ...
+....
+
+
+==== Finding text in git logs
+
+The `git-log-grep` command (short: `glg`) basically runs
+
+....
+git log --oneline | grep <regex>"
+....
+
+for the given regular expressions on the summary lines of all git
+repositories that are part of the project.  By default, it limits the
+repository history to 1000 commits.  If you need to search in older
+commit summary lines, you can use the `-n <num commits>` option.
+
+Example:
+
+....
+$ ye glg 'build error'
+[0] poky 7eb3e45 bitbake: toasterui: refactor log saving and save out-of-build errors [0]
+[1] meta-fsl-arm e45b4f8 linux-imx (2.6.35.3): Fix build errors when using make 3.82 [1]
+[2] meta-fsl-arm 7b30034 gst-fsl-plugin-2.0.3: fix build error due to missing uint declaration [2]
+[3] meta-fsl-arm c38a612 xf86-video-imxfb: fix build error due to missing uint declaration [3]
+[4] meta-openembedded 17ce4c6 libmtp: Fix 'Makefile.am: No such file or directory' build error. [4]
+Option (ENTER to cancel): 4
+commit 17ce4c6ac0d5b3651c7bd8758511679210a3286c
+Author: Charles Oram <charles@oram.co.nz>
+Date:   Wed May 14 15:36:45 2014 +1200
+
+    libmtp: Fix 'Makefile.am: No such file or directory' build error.
+    
+    * skip_udev_rules_generation() needs to reference Makefile.am in the recipe
+      source directory.
+    
+    Signed-off-by: Charles Oram <charles@oram.co.nz>
+    Signed-off-by: Martin Jansa <Martin.Jansa@gmail.com>
+
+diff --git a/meta-oe/recipes-connectivity/libmtp/libmtp_1.1.5.bb b/meta-oe/recipes-connectivity/libmtp/libmtp_1.1.5.bb
+index f4ea800..0c92ff9 100644
+--- a/meta-oe/recipes-connectivity/libmtp/libmtp_1.1.5.bb
++++ b/meta-oe/recipes-connectivity/libmtp/libmtp_1.1.5.bb
+@@ -29,8 +29,8 @@ do_unpack[vardeps] += "skip_udev_rules_generation"
+ do_unpack[postfuncs] += "skip_udev_rules_generation"
+ 
+ skip_udev_rules_generation () {
+-       sed -i -e '/^noinst_DATA=/,/util\/mtp-hotplug -H/d' Makefile.am
+-       cp ${WORKDIR}/69-libmtp.rules ${S}/
++    sed -i -e '/^noinst_DATA=/,/util\/mtp-hotplug -H/d' ${S}/Makefile.am
++    cp ${WORKDIR}/69-libmtp.rules ${S}/
+ }
+ 
+ inherit autotools pkgconfig lib_package
+....
+
+
+=== Displaying buildhistory changes
+
+The `buildhistory` command (short: `bh`) can be used to display
+changes in the
+http://www.yoctoproject.org/docs/current/ref-manual/ref-manual.html#maintaining-build-output-quality[buildhistory].
+The required argument (a positive integer) is the number of previous
+revisions to display.  If the optional `-d` argument is given,
+`buildhistory` will show the raw diff output.
+
+`buildhistory` is basically a wrapper around `buildhistory-diff` or
+`git diff` in the buildhistory directory (when `-d` is provided).
+
+Example:
+
+....
+$ ye bh 1
+packages/cortexa9hf-vfp-neon-oel-linux-gnueabi/tslib/tslib-calibrate: PKGR changed from r0.2 to r0.3
+packages/cortexa9hf-vfp-neon-oel-linux-gnueabi/tslib/tslib-conf: PKGR changed from r0.2 to r0.3
+packages/cortexa9hf-vfp-neon-oel-linux-gnueabi/tslib/tslib-dbg: PKGR changed from r0.2 to r0.3
+packages/cortexa9hf-vfp-neon-oel-linux-gnueabi/tslib/tslib-dev: PKGR changed from r0.2 to r0.3
+packages/cortexa9hf-vfp-neon-oel-linux-gnueabi/tslib/tslib-doc: PKGR changed from r0.2 to r0.3
+packages/cortexa9hf-vfp-neon-oel-linux-gnueabi/tslib/tslib-locale: PKGR changed from r0.2 to r0.3
+packages/cortexa9hf-vfp-neon-oel-linux-gnueabi/tslib/tslib-staticdev: PKGR changed from r0.2 to r0.3
+packages/cortexa9hf-vfp-neon-oel-linux-gnueabi/tslib/tslib-tests: PKGR changed from r0.2 to r0.3
+packages/cortexa9hf-vfp-neon-oel-linux-gnueabi/tslib/tslib: PKGR changed from r0.2 to r0.3
+....
+
+
+=== Finding documentation for variables
+
+The `doc` command (short: `d`) is a `man`-like tool for Yocto
+Project's variables.  It searches the
+http://www.yoctoproject.org/docs/current/ref-manual/ref-manual.html[Yocto
+Project Reference Manual] for variables matching the given regular
+expression pattern (matching is case-insensitive).
+
+Example:
+
+....
+$ ye d STAGING_DIR
+[0] STAGING_DIR [0]
+[1] STAGING_DIR_TARGET [1]
+[2] STAGING_DIR_HOST [2]
+[3] STAGING_DIR_NATIVE [3]
+Option (ENTER to cancel): 3
+
+=== STAGING_DIR_NATIVE
+ Specifies the path to the sysroot directory for the build host. 
+....
+
+`ye` maintains a cache of the Yocto project Reference Manual for seven
+days (under `$YE_DIR/doc-data`).  If the cache is older than seven
+days, it will fetch the reference manual data and update the cache.
+
+
+=== Expanding BitBake variables
+
+The `expand` command (short: `x`) can be very handy to find out
+variables' values and how they are assembled. It takes as argument a
+recipe and the variable you want to expand.  It'll print the final
+variable value and the intermediary expansions (in case the variable
+value references other variables) in the context of the given recipe.
+
+Example:
+
+....
+$ ye x core-image-minimal STAGING_DIR_TARGET
+Parsing recipes..done.
+=== Final value
+STAGING_DIR_TARGET = /home/mario/src/yocto/build/tmp/sysroots/nitrogen6x-lite
+
+=== Expansion
+STAGING_DIR_TARGET ==> ${STAGING_DIR}/${MACHINE}
+    STAGING_DIR ==> ${TMPDIR}/sysroots
+        TMPDIR ==> /home/mario/src/yocto/build/tmp
+    MACHINE ==> nitrogen6x-lite
+....
+
 
 Except for the `find` and `grep` commands, all commands expect the
 `BUILDDIR` environment variable to be set in the environment.  This
 variable is automatically set by the `setup-environment` script
 provided by O.S. Systems for the Yocto Project-based projects.
+
+
+=== Moving around: changing directories
+
+The `cd` command can be used to move around the project directory.
+`ye` provides some shortcut names for common directories in the layout
+adopted by O.S. Systems.  See the documentation for the `cd` command
+for all available shortcuts.
+
+Using the `cd` command is just like using the shell's `cd` command,
+but giving the available shortcuts as arguments.  Examples:
+
+....
+$ pwd
+/home/mario/src/yocto
+
+$ ye cd
+$ pwd
+/home/mario/src/yocto/build
+
+$ ye cd src
+$ pwd
+/home/mario/src/yocto/sources
+
+$ ye cd src flex
+[0] ~/src/yocto/sources/poky/meta/recipes-bsp/grub/files/fix-issue-with-flex-2.5.37.patch [0]
+[1] ~/src/yocto/sources/poky/meta/recipes-devtools/flex/flex_2.5.39.bb [1]
+[2] ~/src/yocto/sources/poky/meta/recipes-devtools/flex/flex.inc [2]
+Option (ENTER to cancel): 0
+/home/mario/src/yocto/sources/poky/meta/recipes-bsp/grub/files/fix-issue-with-flex-2.5.37.patch
+$ pwd
+/home/mario/src/yocto/sources/poky/meta/recipes-bsp/grub/files
+
+$ ye cd wd flex
+[0] /home/mario/src/yocto/build/tmp/work/x86_64-linux/flex-native [0]
+[1] /home/mario/src/yocto/build/tmp/work/cortexa9hf-vfp-neon-poky-linux-gnueabi/flex [1]
+Option (ENTER to cancel): 1
+/home/mario/src/yocto/build/tmp/work/cortexa9hf-vfp-neon-poky-linux-gnueabi/flex
+$ pwd
+/home/mario/src/yocto/build/tmp/work/cortexa9hf-vfp-neon-poky-linux-gnueabi/flex
+....
+
+NOTE: the `cd` command requires evaluating the `ye-cd` shell wrapper
+that is shipped with `ye`.  O.S. Systems' `setup-environment` script
+will do that automatically if you have `ye` in your source tree.
 
 
 == Configuration
