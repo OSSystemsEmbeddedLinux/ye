@@ -13,7 +13,7 @@ def show(line):
 
 input_file = sys.argv[1]
 input = open(input_file, 'r')
-gcc_call_counter = 0
+command_line_counter = 0
 
 while True:
     build_line = input.readline()
@@ -29,8 +29,8 @@ while True:
         if (filename.endswith('gcc') or
             filename.endswith('g++') or
             filename.endswith('xgcc')):
-            gcc_call_counter += 1
-            print('--------------[ GCC call %s ]----------------------' % gcc_call_counter)
+            command_line_counter += 1
+            print('--------------[ command line %s ]----------------------' % command_line_counter)
             lines = [first_token]
             for token in tokens[1:]:
                 if prev in ['-o', '-isystem']:

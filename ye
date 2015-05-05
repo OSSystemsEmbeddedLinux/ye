@@ -385,12 +385,12 @@ def pkg_extract(pkg_file, file, from_control):
         die("ERROR: unsupported package file extension: %s" % ext)
 
 
-def human_readable_gcc_calls(file):
+def human_readable_command_lines(file):
     formatter = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                             'format-gcc-calls.py')
+                             'format-command-lines.py')
     os.system('python %s "%s" | less' % (formatter, file))
 
-human_readable_gcc_calls_action = ('View', 'v', human_readable_gcc_calls)
+human_readable_command_lines_action = ('View', 'v', human_readable_command_lines)
 
 view_action = ('View', 'v', lambda file: os.system(YE_PAGER % file))
 
@@ -442,7 +442,7 @@ def list_temp_files(file_type, recipe_pattern, log_pattern, exact, raw):
         if raw:
             view_action[2](log)
         else:
-            human_readable_gcc_calls_action[2](log)
+            human_readable_command_lines_action[2](log)
         print(log_dir)
 
 

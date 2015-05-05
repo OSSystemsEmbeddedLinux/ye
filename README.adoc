@@ -530,7 +530,7 @@ $ ye l -H busybox compile
 [1] log.do_compile [1]
 Option (ENTER to cancel): 1
 ...
---------------[ GCC call 2 ]----------------------
+--------------[ command line 2 ]----------------------
 gcc
   -Wp,-MD,applets/.applet_tables.d
   -Wall
