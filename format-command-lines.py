@@ -28,7 +28,8 @@ while True:
         filename = os.path.basename(first_token)
         if (filename.endswith('gcc') or
             filename.endswith('g++') or
-            filename.endswith('xgcc')):
+            filename.endswith('xgcc') or
+            filename.endswith('javac')):
             command_line_counter += 1
             print('--------------[ command line %s ]----------------------' % command_line_counter)
             lines = [first_token]
