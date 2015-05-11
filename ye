@@ -608,6 +608,10 @@ def doc(pattern, exact):
                 text.append('\n' + elt.text + '\n')
             elif elt.tag in ['link', 'ulink']:
                 text.append(parse_children(elt))
+            elif elt.tag == 'note':
+                text.append('\n\n' + parse_paragraph(elt))
+            elif elt.tag == 'title':
+                text.append('\n\n' + elt.text + ': ')
             else:
                 parse_paragraph(elt)
             if elt.tail:
