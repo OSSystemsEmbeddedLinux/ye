@@ -580,8 +580,8 @@ def doc(pattern, exact):
     def parse_itemized_list(l):
         text = []
         for item in l.findall('listitem'):
-            text.append(parse_paragraph(item))
-        return '\n' + '\n'.join(text) + '\n'
+            text.append('* ' + '\n'.join([ parse_paragraph(p) for p in item.findall('para') ]))
+        return '\n\n' + '\n\n'.join(text)
 
     def parse_children(elt, sep=''):
         if elt.text:
@@ -603,7 +603,7 @@ def doc(pattern, exact):
             elif elt.tag == 'listitem':
                 text.append('\n\n* %s' % parse_children(elt, sep='\n'))
             elif elt.tag == 'itemizedlist':
-                parse_itemized_list(elt)
+                text.append(parse_itemized_list(elt))
             elif elt.tag == 'literallayout':
                 text.append('\n' + elt.text + '\n')
             elif elt.tag in ['link', 'ulink']:
