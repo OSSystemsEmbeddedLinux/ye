@@ -410,7 +410,9 @@ def list_temp_files(file_type, recipe_pattern, log_pattern, exact, raw):
     if not wds:
         sys.exit(1)
     if len(wds) > 1:
-        choice, _ = prompt(wds, os.path.basename)
+        choice, _ = prompt(wds,
+                           lambda path: os.path.join(os.path.basename(os.path.dirname(path)),
+                                                     os.path.basename(path)))
         wd = wds[choice]
     else:
         wd = wds[0]
