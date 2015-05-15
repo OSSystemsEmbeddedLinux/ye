@@ -291,10 +291,9 @@ def find_workdir(pattern, exact):
     paths = glob.glob(os.path.join(BUILDDIR, 'tmp', 'work', '*', '*'))
     for path in paths:
         if os.path.isdir(path):
-            basedir = os.path.dirname(path)
             dir = os.path.basename(path)
             if re_pattern.match(dir):
-                results.append(os.path.join(basedir, dir))
+                results.append(path)
     return results
 
 
