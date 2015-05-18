@@ -127,13 +127,22 @@ workdir [-e] <regex>
     Locate the Yocto Project's workdir for <regex>.  <regex> is
     implicitly surrounded by '.*', unless -e is provided.
 
-l [-e] [-H] <recipe pattern> [<log pattern>]
+l [-e] [-H] [-R] <recipe pattern> [<log pattern>]
 log [-e] [-H] <recipe pattern> [<log pattern>]
     Show the log files for <recipe>.  -e is only applied to
     <recipe pattern>.  <log pattern> is always implicitly surrounded
     by '.*', if provided.  If -H ("human readable") is given on the
     command line, ye will try to make the lines that contain calls
-    to gcc/g++ look more readable.
+    to gcc/g++ look more readable.  If -R is provided, ye will apply
+    some text replacements to make the output more readable.  Currently,
+    ye reverse expands some common variables whose expansion pollutes
+    log files with long paths.  The following variables are reverse
+    expanded:
+      * $B
+      * $S
+      * $WORKDIR
+      * $TMPDIR
+      * $HOME
 
 r [-e] <recipe pattern> [<run script pattern>]
 run [-e] <recipe pattern> [<run script pattern>]
@@ -541,6 +550,78 @@ gcc
   applets/applet_tables.c
 ...
 ....
+
+Long paths can considerably clutter logs, making them quite difficult
+to read.  Another useful argument to `log` is `-R`: it reverse expands
+some variables in log text, transforming long paths into their
+corresponding variable.  Examples:
+
+Without `-R`:
+
+----
+$ ye l -H make$ compile
+...
+Making all in doc
+make[2]: Entering directory '/home/mario/src/yocto/build/tmp/work/ppce500v2-oel-linux-gnuspe/make/4.0-r0/build/doc'
+make[2]: Leaving directory '/home/mario/src/yocto/build/tmp/work/ppce500v2-oel-linux-gnuspe/make/4.0-r0/build/doc'
+make[2]: Entering directory '/home/mario/src/yocto/build/tmp/work/ppce500v2-oel-linux-gnuspe/make/4.0-r0/build'
+---------------[ command line 1 ]---------------
+powerpc-oel-linux-gnuspe-gcc
+  -m32
+  -mcpu=8548
+  -mabi=spe
+  -mspe
+  -mfloat-gprs=double
+  --sysroot=/home/mario/src/yocto/build/tmp/sysroots/olt8820plus
+  -DLOCALEDIR=\"/usr/share/locale\"
+  -DLIBDIR=\"/usr/lib\"
+  -DINCLUDEDIR=\"/usr/include\"
+  -DHAVE_CONFIG_H
+  -I.
+  -I/home/mario/src/yocto/build/tmp/work/ppce500v2-oel-linux-gnuspe/make/4.0-r0/make-4.0
+  -O2
+  -pipe
+  -g
+  -feliminate-unused-debug-types
+  -c
+  -o ar.o
+  /home/mario/src/yocto/build/tmp/work/ppce500v2-oel-linux-gnuspe/make/4.0-r0/make-4.0/ar.c
+...
+----
+
+
+With `-R`:
+
+----
+$ ye l -H -R make$ compile
+...
+Making all in doc
+make[2]: Entering directory '$B/doc'
+make[2]: Leaving directory '$B/doc'
+make[2]: Entering directory '$B'
+---------------[ command line 1 ]---------------
+powerpc-iep-linux-gnuspe-gcc
+  -m32
+  -mcpu=8548
+  -mabi=spe
+  -mspe
+  -mfloat-gprs=double
+  --sysroot=$TMPDIR/sysroots/olt8820plus
+  -DLOCALEDIR=\"/usr/share/locale\"
+  -DLIBDIR=\"/usr/lib\"
+  -DINCLUDEDIR=\"/usr/include\"
+  -DHAVE_CONFIG_H
+  -I.
+  -I$S
+  -O2
+  -pipe
+  -g
+  -feliminate-unused-debug-types
+  -c
+  -o ar.o
+  $S/ar.c
+...
+----
 
 
 === Finding text (_grepping_)

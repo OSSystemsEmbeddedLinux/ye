@@ -384,10 +384,32 @@ def pkg_extract(pkg_file, file, from_control):
         die("ERROR: unsupported package file extension: %s" % ext)
 
 
-def human_readable_command_lines(file):
+def human_readable_command_lines(file, raw, apply_replacements):
     formatter = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                              'format-command-lines.py')
-    os.system('python %s "%s" | less' % (formatter, file))
+    if apply_replacements:
+        expand_mod = __import__('bb-expand-vars')
+        check_builddir()
+        os.chdir(BUILDDIR)
+        recipe = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(file))))
+        ## Warning: the order of the variables below is important!
+        ## Beware of unintended substring replacements.
+        vars = ['B',
+                'S',
+                'WORKDIR',
+                'TMPDIR',
+                'HOME']
+        replacements = expand_mod.show_var_expansions(recipe, vars, True)
+        replacement_args = ' '.join(map(lambda a: '\'%s=$%s\'' % (replacements[a], a), vars))
+        modes = 'apply-replacements'
+        if not raw:
+            modes += ',format-calls'
+        os.system('python %s "%s" %s %s | less' % (formatter, file, modes, replacement_args))
+    else:
+        if raw:
+            view_action[2](file)
+        else:
+            os.system('python %s "%s" format-calls | less' % (formatter, file))
 
 human_readable_command_lines_action = ('View', 'v', human_readable_command_lines)
 
@@ -405,7 +427,7 @@ def pkg_extract_action(file, from_control):
     return ('Extract', 'x', lambda pkg: pkg_extract(pkg, file, from_control))
 
 
-def list_temp_files(file_type, recipe_pattern, log_pattern, exact, raw):
+def list_temp_files(file_type, recipe_pattern, log_pattern, exact, raw, apply_replacements):
     wds = find_workdir(recipe_pattern, exact)
     if not wds:
         sys.exit(1)
@@ -440,19 +462,16 @@ def list_temp_files(file_type, recipe_pattern, log_pattern, exact, raw):
         else:
             log = logs[0]
         print('=== %s' % log)
-        if raw:
-            view_action[2](log)
-        else:
-            human_readable_command_lines_action[2](log)
+        human_readable_command_lines_action[2](log, raw, apply_replacements)
         print(log_dir)
 
 
-def list_logs(recipe_pattern, log_pattern, exact, raw):
-    list_temp_files('log', recipe_pattern, log_pattern, exact, raw)
+def list_logs(recipe_pattern, log_pattern, exact, raw, apply_replacements):
+    list_temp_files('log', recipe_pattern, log_pattern, exact, raw, apply_replacements)
 
 
 def list_run_scripts(recipe_pattern, log_pattern, exact):
-    list_temp_files('run', recipe_pattern, log_pattern, exact, True)
+    list_temp_files('run', recipe_pattern, log_pattern, exact, True, False)
 
 
 def grep(args, actions, case_sensitive, dir=None):
@@ -819,13 +838,22 @@ workdir [-e] <regex>
     Locate the Yocto Project's workdir for <regex>.  <regex> is
     implicitly surrounded by '.*', unless -e is provided.
 
-l [-e] [-H] <recipe pattern> [<log pattern>]
+l [-e] [-H] [-R] <recipe pattern> [<log pattern>]
 log [-e] [-H] <recipe pattern> [<log pattern>]
     Show the log files for <recipe>.  -e is only applied to
     <recipe pattern>.  <log pattern> is always implicitly surrounded
     by '.*', if provided.  If -H ("human readable") is given on the
     command line, ye will try to make the lines that contain calls
-    to gcc/g++ look more readable.
+    to gcc/g++ look more readable.  If -R is provided, ye will apply
+    some text replacements to make the output more readable.  Currently,
+    ye reverse expands some common variables whose expansion pollutes
+    log files with long paths.  The following variables are reverse
+    expanded:
+      * $B
+      * $S
+      * $WORKDIR
+      * $TMPDIR
+      * $HOME
 
 r [-e] <recipe pattern> [<run script pattern>]
 run [-e] <recipe pattern> [<run script pattern>]
@@ -953,6 +981,7 @@ def main(args):
                  'glg', 'git-log-grep', 'd', 'doc']:
         exact = False
         raw = True
+        apply_replacements = False
         from_control = False
         num_commits = 1000
         case_sensitive = True
@@ -962,6 +991,9 @@ def main(args):
         if '-H' in cmd_args:
             raw = False
             cmd_args.remove('-H')
+        if '-R' in cmd_args:
+            apply_replacements = True
+            cmd_args.remove('-R')
         if '-c' in cmd_args:
             from_control = True
             cmd_args.remove('-c')
@@ -1077,7 +1109,7 @@ def main(args):
                 if len(cmd_args) > 1:
                     log_pattern = cmd_args[1]
                 if cmd in ['l', 'log']:
-                    list_logs(pattern, log_pattern, exact, raw)
+                    list_logs(pattern, log_pattern, exact, raw, apply_replacements)
                 else:
                     list_run_scripts(pattern, log_pattern, exact)
         else: usage(1)
