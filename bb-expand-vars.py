@@ -235,7 +235,7 @@ def tokenize_expr(expr):
         else:
             token += char
     if depth != 0:
-        raise()
+        raise SyntaxError('Unexpected expression depth (> 0) when tokenizing %s' % expr)
     if token:
         tokens.append(token)
     return tokens
