@@ -825,6 +825,15 @@ required.
 
 For the `cd` command, a Bourne-compatible shell is required.
 
+
+== Limitations
+
+Some `ye` commands use `bitbake` behind the scenes, and since
+`bitbake` doesn't support running multipl instances in parallel under
+the same build directory, some `ye` features may not work while you
+are using `bitbake`.
+
+
 == License
 
 `ye` is distributed under the GNU Affero General Public License.  See
