@@ -165,6 +165,10 @@ git-log-grep [-n <num commits>] [-i] <regex>
    If -n is not provided, 1000 will be used.  If -i is provided, search
    will be case insensitive.
 
+gbh [<args>] <regex>
+grep-buildhistory [<args>] <regex>
+   Run "git grep [<args>] <regex>" in the buildhistory directory.
+
 bh [-d] <revisions back>
 buildhistory [-d] <revisions back>
     Show changes in buildhistory <revisions back> (a positive integer).
@@ -738,6 +742,22 @@ index f4ea800..0c92ff9 100644
  }
  
  inherit autotools pkgconfig lib_package
+....
+
+
+==== Finding text in the buildhistory repository
+
+The `grep-buildhistory` commmand (short: `gbh`) is a wrapper around
+`git grep` in the buildhistory directory.
+
+Example:
+
+....
+$ ye gbh 'passwd /bin/busybox'
+[0] packages/armv7a-vfp-neon-iep-linux-gnueabi/busybox/busybox/latest.pkg_postinst:     update-alternatives --install /usr/bin/passwd passwd /bin/busybox.suid 50 [0]
+[1] packages/armv7a-vfp-neon-iep-linux-gnueabi/busybox/busybox/latest.pkg_postrm:       update-alternatives --remove  passwd /bin/busybox.suid [1]
+[2] packages/ppce500v2-iep-linux-gnuspe/busybox/busybox/latest.pkg_postinst:    update-alternatives --install /usr/bin/passwd passwd /bin/busybox.suid 50 [2]
+[3] packages/ppce500v2-iep-linux-gnuspe/busybox/busybox/latest.pkg_postrm:      update-alternatives --remove  passwd /bin/busybox.suid [3]
 ....
 
 

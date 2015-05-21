@@ -473,12 +473,13 @@ def list_logs(recipe_pattern, log_pattern, exact, raw, apply_replacements):
 def list_run_scripts(recipe_pattern, log_pattern, exact):
     list_temp_files('run', recipe_pattern, log_pattern, exact, True, False)
 
-
-def grep(args, actions, case_sensitive, dir=None):
-    root_dir = find_yocto_root()
-    os.chdir(root_dir)
-    if dir:
-        p = subprocess.Popen(['grep', '-r'] + args + [dir], stdout=subprocess.PIPE)
+def grep(args, actions, case_sensitive, dir=None, git=False):
+    if git and dir:
+        os.chdir(dir)
+        p = subprocess.Popen(['git', 'grep'] + args, stdout=subprocess.PIPE)
+    elif dir:
+        os.chdir(dir)
+        p = subprocess.Popen(['grep', '-r'] + args, stdout=subprocess.PIPE)
     else:
         p = subprocess.Popen(['repo', 'grep'] + args, stdout=subprocess.PIPE)
     regex_pattern = [ arg for arg in args if not arg.startswith('-') ]
@@ -575,6 +576,17 @@ def git_log_grep(pattern, max_commits, case_sensitive):
     else:
         for option in options:
             print(option)
+
+def grep_buildhistory(args):
+    check_builddir()
+    bhdir = os.path.join(BUILDDIR, 'buildhistory')
+    if not os.path.isdir(bhdir):
+        die('Could not find the buildhistory directory at %s.' % bhdir)
+    print_matches(grep(args,
+                       [view_action, edit_action],
+                       '-i' in args,
+                       dir=bhdir,
+                       git=True))
 
 def buildhistory(revisions, raw_diff):
     bhdir = os.path.join(BUILDDIR, 'buildhistory')
@@ -876,6 +888,10 @@ git-log-grep [-n <num commits>] [-i] <regex>
    If -n is not provided, 1000 will be used.  If -i is provided, search
    will be case insensitive.
 
+gbh [<args>] <regex>
+grep-buildhistory [<args>] <regex>
+   Run "git grep [<args>] <regex>" in the buildhistory directory.
+
 bh [-d] <revisions back>
 buildhistory [-d] <revisions back>
     Show changes in buildhistory <revisions back> (a positive integer).
@@ -974,6 +990,8 @@ def main(args):
             expand_mod = __import__('bb-expand-vars')
             os.chdir(BUILDDIR)
             expand_mod.show_var_expansions(cmd_args[0], cmd_args[1])
+    elif cmd in ['gbh', 'grep-buildhistory']:
+        grep_buildhistory(cmd_args)
     elif cmd in ['f', 'find', 'v', 'view', 'e', 'edit', 'sf', 'sysroot-find',
                  'wd', 'workdir', 'pf', 'pkg-find', 'pv', 'pkg-view',
                  'pi', 'pkg-info', 'px', 'pkg-extract', 'ps', 'pkg-scripts',
