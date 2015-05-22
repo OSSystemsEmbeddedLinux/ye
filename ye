@@ -105,13 +105,30 @@ except NameError:
 
 red = '\x1b[31;1m{}\x1b[0m'
 blue = '\x1b[34;1m{}\x1b[0m'
+bold = '\033[1m{}\033[0m'
 
-def colorize(text, pattern, color=red, case_sensitive=True):
+def colorize_layer(path):
+    path_parts = path.split('/')
+    sources_idx = None
+    try:
+        sources_idx = path_parts.index('sources')
+    except ValueError:
+        return path
+    if sources_idx < (len(path_parts) - 2):
+        layer_idx = sources_idx + 1
+        path_parts[layer_idx] = bold.format(path_parts[layer_idx])
+    return '/'.join(path_parts)
+
+def colorize(text, pattern, color=red, case_sensitive=True, layer=True):
     if sys.stdout.isatty():
         if not case_sensitive:
             pattern = '(?i)' + pattern
-        return re.sub(pattern,
-                      lambda m: color.format(m.group()), text)
+        colorized_pattern = re.sub(pattern,
+                                   lambda m: color.format(m.group()), text)
+        if layer:
+            return colorize_layer(colorized_pattern)
+        else:
+            return colorized_pattern
     else:
         return text
 
