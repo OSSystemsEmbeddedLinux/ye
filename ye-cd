@@ -1,7 +1,26 @@
 # -*- shell-script -*-
 
-YE_PLUMBING_DIR=$HOME/.ye/plumbing
+# If ye-cd has been source'd already, YE_SCRIPT will be in the
+# environment, so we should not re-source it, unless YE_FORCE_RELOAD
+# is set.
+if [ -n "$YE_SCRIPT" ] && [ ! -n "$YE_FORCE_RELOAD" ]; then
+    cat <<EOF >&2
+This script has already been source'd. If you really want to
+re-evaluate it, set the YE_FORCE_RELOAD environment variable and
+source it again.
+EOF
+    return
+fi
+
 YE_SCRIPT=`which ye`
+if [ $? -ne 0 ]; then
+    echo "ERROR: could not find ye (is it in \$PATH?)." >&2
+    return
+fi
+
+export YE_SCRIPT
+
+YE_PLUMBING_DIR=$HOME/.ye/plumbing
 
 yecd_error() {
     echo "ERROR: " $* >&2
