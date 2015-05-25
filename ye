@@ -869,15 +869,15 @@ workdir [-e] <regex>
 
 l [-e] [-H] [-R] <recipe pattern> [<log pattern>]
 log [-e] [-H] <recipe pattern> [<log pattern>]
-    Show the log files for <recipe>.  -e is only applied to
-    <recipe pattern>.  <log pattern> is always implicitly surrounded
-    by '.*', if provided.  If -H ("human readable") is given on the
-    command line, ye will try to make the lines that contain calls
-    to gcc/g++ look more readable.  If -R is provided, ye will apply
-    some text replacements to make the output more readable.  Currently,
-    ye reverse expands some common variables whose expansion pollutes
-    log files with long paths.  The following variables are reverse
-    expanded:
+    Show the log files for <recipe>.  -e is only applied to <recipe
+    pattern>.  <log pattern> is always implicitly surrounded by '.*',
+    if provided.  If -H ("human readable") is given on the command
+    line, ye will try to make the lines that contain calls to
+    clang/clang++/gcc/g++ look more readable.  If -R is provided, ye
+    will apply some text replacements to make the output more
+    readable.  Currently, ye reverse expands some common variables
+    whose expansion pollutes log files with long paths.  The following
+    variables are reverse expanded:
       * $B
       * $S
       * $WORKDIR

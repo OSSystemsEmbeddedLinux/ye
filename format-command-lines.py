@@ -63,6 +63,8 @@ while True:
             if (filename.endswith('gcc') or
                 filename.endswith('g++') or
                 filename.endswith('xgcc') or
+                filename.endswith('clang') or
+                filename.endswith('clang++') or
                 filename.endswith('javac')):
                 command_line_counter += 1
                 dashes = '-' * 15
