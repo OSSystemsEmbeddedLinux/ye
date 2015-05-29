@@ -5,9 +5,8 @@
 # is set.
 if [ -n "$YE_SCRIPT" ] && [ ! -n "$YE_FORCE_RELOAD" ]; then
     cat <<EOF >&2
-This script has already been source'd. If you really want to
-re-evaluate it, set the YE_FORCE_RELOAD environment variable and
-source it again.
+ye-cd has already been source'd. If you really want to re-evaluate it,
+set the YE_FORCE_RELOAD environment variable and source it again.
 EOF
     return
 fi
