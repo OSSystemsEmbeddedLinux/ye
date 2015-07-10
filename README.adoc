@@ -88,6 +88,11 @@ sysroot-find [-e] <regex>
     is attempted on filenames only (not on dirnames).  If <regex>
     contains /, matching is attempted on the full path.
 
+wsf [-e] <regex>
+work-shared-find [-e] <regex>
+    Similar to sysroot-find, but instead of searching in the sysroots
+    directories, search in the work-shared directory.
+
 pf [-e] <regex>
 pkg-find [-e] <regex>
     Like 'find', but for packages.
@@ -337,6 +342,13 @@ for the one you really want to see.
 The `sysroot-find` (short: `sf`) command is pretty much equivalent to
 the `find` command, except it locates files under the sysroots
 directory (`<build dir>/tmp/sysroots`).
+
+
+==== Finding and displaying files in the `work-shared` directory
+
+The `work-shared-find` (short: `wsf`) command is similar to the
+`sysroot-find` command, but instead of searching in the sysroots
+directories, it searches in the `work-shared` directory.
 
 
 ==== Finding and operating on files in the `deploy` directory (for packages)

@@ -828,6 +828,11 @@ sysroot-find [-e] <regex>
     is attempted on filenames only (not on dirnames).  If <regex>
     contains /, matching is attempted on the full path.
 
+wsf [-e] <regex>
+work-shared-find [-e] <regex>
+    Similar to sysroot-find, but instead of searching in the sysroots
+    directories, search in the work-shared directory.
+
 pf [-e] <regex>
 pkg-find [-e] <regex>
     Like 'find', but for packages.
@@ -1013,7 +1018,7 @@ def main(args):
                  'wd', 'workdir', 'pf', 'pkg-find', 'pv', 'pkg-view',
                  'pi', 'pkg-info', 'px', 'pkg-extract', 'ps', 'pkg-scripts',
                  'l', 'log', 'r', 'run', 'g', 'grep', 'sg', 'sysroot-grep',
-                 'glg', 'git-log-grep', 'd', 'doc']:
+                 'glg', 'git-log-grep', 'd', 'doc', 'wsf', 'work-shared-find']:
         exact = False
         raw = True
         apply_replacements = False
@@ -1092,12 +1097,15 @@ def main(args):
                                    os.path.join(find_yocto_root(), 'sources'),
                                    exact,
                                    actions))
-            elif cmd in ['sf', 'sysroot-find']:
+            elif cmd in ['sf', 'sysroot-find', 'wsf', 'work-shared-find']:
                 check_builddir()
-                sysroots_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots')
-                if os.path.isdir(sysroots_dir):
+                if cmd in ['sf', 'sysroot-find']:
+                    search_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots')
+                else:
+                    search_dir = os.path.join(BUILDDIR, 'tmp', 'work-shared')
+                if os.path.isdir(search_dir):
                     print_matches(find(pattern,
-                                       sysroots_dir,
+                                       search_dir,
                                        exact,
                                        [view_action, edit_action]))
             elif cmd in ['wd', 'workdir']:
