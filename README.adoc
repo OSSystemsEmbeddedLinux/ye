@@ -35,7 +35,7 @@ standard layout as determined by the Yocto Project.
 
 Most `ye` commands accept a regular expression as argument. Thus, it's
 possible that it will obtain multiple results.  In this case, if
-`ye`'s output is attached to a terminal (i.e., not a pipe or a file),
+``ye``'s output is attached to a terminal (i.e., not a pipe or a file),
 it will run interactively, prompting users for a specific result.
 
 When running interactively, `ye` will paginate the output in case it
