@@ -276,7 +276,7 @@ def get_var_val(var, metadata):
         except:
             val = '<could not expand>'
     else:
-        val = metadata.getVar(var)
+        val = metadata.getVar(var, False)
     return val
 
 def expand_var(var, metadata, indent):
