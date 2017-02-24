@@ -1,15 +1,7 @@
 #! /usr/bin/env python3
 # -*- encoding: utf-8 -*-
-
-""" From https://github.com/kergoth/bb/blob/master/libexec/bbcmd.py """
-
-import re
-import argparse
-import contextlib
-import logging
 import os
 import sys
-import warnings
 
 PATH = os.getenv('PATH').split(':')
 bitbake_paths = [os.path.join(path, '..', 'lib')
@@ -19,181 +11,36 @@ if not bitbake_paths:
 
 sys.path[0:0] = bitbake_paths
 
-import bb.msg
-import bb.utils
-import bb.providers
-import bb.tinfoil
-from bb.cookerdata import CookerConfiguration, ConfigParameters
-
-
-class Terminate(BaseException):
-    pass
-
-
-class Tinfoil(bb.tinfoil.Tinfoil):
-    def __init__(self, output=sys.stdout):
-        # Needed to avoid deprecation warnings with python 2.6
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-        # Set up logging
-        self.logger = logging.getLogger('BitBake')
-        if output is not None:
-            setup_log_handler(self.logger, output)
-
-        self.config = self.config = CookerConfiguration()
-        configparams = bb.tinfoil.TinfoilConfigParameters(parse_only=True)
-        self.config.setConfigParameters(configparams)
-        self.config.setServerRegIdleCallback(self.register_idle_function)
-        self.cooker = bb.cooker.BBCooker(self.config)
-        self.config_data = self.cooker.data
-        bb.providers.logger.setLevel(logging.ERROR)
-        bb.taskdata.logger.setLevel(logging.CRITICAL)
-        self.cooker_data = None
-        self.taskdata = {}
-
-        self.localdata = bb.data.createCopy(self.config_data)
-        self.localdata.finalize()
-        # TODO: why isn't expandKeys a method of DataSmart?
-        bb.data.expandKeys(self.localdata)
-
-
-    def prepare_taskdata(self, provided=None, rprovided=None):
-        self.cache_data = self.cooker.recipecaches['']
-        self.taskdata[''] = self.taskdata.get('', bb.taskdata.TaskData(abort=False))
-
-        if provided:
-            self.add_provided(provided)
-
-        if rprovided:
-            self.add_rprovided(rprovided)
-
-    def add_rprovided(self, rprovided):
-        for item in rprovided:
-            self.taskdata[''].add_rprovider(self.localdata, self.cache_data, item)
-
-        self.taskdata[''].add_unresolved(self.localdata, self.cache_data)
-
-    def add_provided(self, provided):
-        if 'world' in provided:
-            if not self.cache_data.world_target:
-                self.cooker.buildWorldTargetList()
-            provided.remove('world')
-            provided.extend(self.cache_data.world_target)
-
-        if 'universe' in provided:
-            provided.remove('universe')
-            provided.extend(self.cache_data.universe_target)
-
-        for item in provided:
-            self.taskdata[''].add_provider(self.localdata, self.cache_data, item)
-
-        self.taskdata[''].add_unresolved(self.localdata, self.cache_data)
-
-    def get_buildid(self, target):
-        if not self.taskdata[''].have_build_target(target):
-            if target in self.cooker.recipecaches[''].ignored_dependencies:
-                return
-
-            reasons = self.taskdata[''].get_reasons(target)
-            if reasons:
-                self.logger.error("No buildable '%s' recipe found:\n%s", target, "\n".join(reasons))
-            else:
-                self.logger.error("No '%s' recipe found", target)
-            return
+def find_yocto_root():
+    def inner_find(dir):
+        repo_dir = os.path.join(dir, '.repo')
+        if os.path.exists(repo_dir) and os.path.isdir(repo_dir):
+            return dir
+        elif dir == '/':
+            return False
         else:
-            return self.taskdata[''].getbuild_id(target)
+            return inner_find(os.path.dirname(dir))
+    BUILDDIR = os.environ.get('BUILDDIR')
+    if BUILDDIR:
+        yocto_root = inner_find(BUILDDIR)
+    else:
+        yocto_root = inner_find(os.getcwd())
+    return yocto_root or die("ERROR: won't search from /.")
 
-    def target_filenames(self):
-        """Return the filenames of all of taskdata's targets"""
-        filenames = set()
+def get_yocto_path():
+    types = ['poky', 'openembedded-core', 'oe']
+    base = find_yocto_root()
+    paths = [os.path.join(base, 'sources', t, 'scripts/lib') for t in types]
+    path = list(filter(os.path.exists, paths))
+    if len(path) != 1:
+        print("ERROR: Can't find scripts path")
+        sys.exit(1)
+    sys.path.append(path[0])
 
-        for targetid in self.taskdata[''].build_targets:
-            fnid = self.taskdata[''].build_targets[targetid][0]
-            fn = self.taskdata[''].fn_index[fnid]
-            filenames.add(fn)
+basepath = ''
 
-        for targetid in self.taskdata[''].run_targets:
-            fnid = self.taskdata[''].run_targets[targetid][0]
-            fn = self.taskdata[''].fn_index[fnid]
-            filenames.add(fn)
-
-        return filenames
-
-    def all_filenames(self):
-        return self.cooker.recipecaches[''].file_checksums.keys()
-
-    def all_preferred_filenames(self):
-        """Return all the recipes we have cached, filtered by providers.
-
-        Unlike target_filenames, this doesn't operate against taskdata.
-        """
-        filenames = set()
-        excluded = set()
-        for provide, fns in self.cooker.recipecaches[''].providers.items():
-            eligible, foundUnique = bb.providers.filterProviders(fns, provide,
-                                                                 self.localdata,
-                                                                 self.cooker.recipecaches[''])
-            preferred = eligible[0]
-            if len(fns) > 1:
-                # Excluding non-preferred providers in multiple-provider
-                # situations.
-                for fn in fns:
-                    if fn != preferred:
-                        excluded.add(fn)
-            filenames.add(preferred)
-
-        filenames -= excluded
-        return filenames
-
-    def provide_to_fn(self, provide):
-        """Return the preferred recipe for the specified provide"""
-        filenames = self.cooker.recipecaches.providers[provide]
-        eligible, foundUnique = bb.providers.filterProviders(filenames, provide, self.localdata)
-        return eligible[0]
-
-    def build_target_to_fn(self, target):
-        """Given a target, prepare taskdata and return a filename"""
-        self.prepare_taskdata([target])
-        if target in self.taskdata[''].build_targets and self.taskdata[''].build_targets[target]:
-            fn = self.taskdata[''].build_targets[target][0]
-        return fn
-
-    def parse_recipe_file(self, recipe_filename):
-        """Given a recipe filename, do a full parse of it"""
-        bb_cache = bb.cache.NoCache(self.cooker.databuilder)
-        appends = self.cooker.collection.get_file_appends(recipe_filename)
-        try:
-            recipe_data = bb_cache.loadDataFull(recipe_filename, appends)
-        except Exception:
-            raise
-        return recipe_data
-
-    def parse_metadata(self, recipe=None):
-        """Return metadata, either global or for a particular recipe"""
-        if recipe:
-            self.prepare_taskdata([recipe])
-            filename = self.build_target_to_fn(recipe)
-            return self.parse_recipe_file(filename)
-        else:
-            return self.localdata
-
-
-def setup_log_handler(logger, output=sys.stderr):
-    log_format = bb.msg.BBLogFormatter("%(levelname)s: %(message)s")
-    if output.isatty() and hasattr(log_format, 'enable_color'):
-        log_format.enable_color()
-    handler = logging.StreamHandler(output)
-    handler.setFormatter(log_format)
-
-    bb.msg.addDefaultlogFilter(handler)
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
-
-
-def sigterm_exception(signum, stackframe):
-    raise Terminate()
-
-###### end of bbcmd
+get_yocto_path()
+from devtool import setup_tinfoil
 
 # For printing indented expression expansions
 indent_step = 4
@@ -307,38 +154,35 @@ def expand_expr(expr, metadata):
 
 def show_var_expansions(recipe, var, plumbing_mode=False):
     # When plumbing_mode is truthy, var is a list of variables
-
-    ## tinfoil sets up log output for the bitbake loggers, but bb uses
-    ## a separate namespace at this time
-    setup_log_handler(logging.getLogger('bb'))
-
-    tinfoil = Tinfoil(output=sys.stderr)
-    tinfoil.prepare(config_only=True)
-
-    tinfoil.parseRecipes()
-
     try:
-        metadata = tinfoil.parse_metadata(recipe)
-    except:
-        sys.exit(1)
+        tinfoil = setup_tinfoil(config_only=True, basepath=basepath)
+        tinfoil.parseRecipes()
 
-    if plumbing_mode:
-        vars_vals = {}
-        for v in var:
-            vars_vals[v] = metadata.getVar(v, True)
-        return vars_vals
-    else:
-        val = metadata.getVar(var, True)
+        try:
+            metadata = tinfoil.parse_recipe(recipe)
+        except:
+            sys.exit(1)
 
-    if val is not None:
-        print('=== Final value')
-        print( '%s = %s' % (var, val))
+        if plumbing_mode:
+            vars_vals = {}
+            for v in var:
+                vars_vals[v] = metadata.getVar(v, True)
+            return vars_vals
+        else:
+            val = metadata.getVar(var, True)
 
-        print('\n=== Expansion')
-        expand_expr('${' + var + '}', metadata)
-    else:
-        sys.stderr.write('%s: no such variable.\n' % var)
-        sys.exit(1)
+        if val is not None:
+            print('=== Final value')
+            print( '%s = %s' % (var, val))
+
+            print('\n=== Expansion')
+            expand_expr('${' + var + '}', metadata)
+        else:
+            sys.stderr.write('%s: no such variable.\n' % var)
+            sys.exit(1)
+
+    finally:
+        tinfoil.shutdown()
 
 
 if __name__ == '__main__':
