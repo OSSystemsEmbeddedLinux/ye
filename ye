@@ -899,7 +899,7 @@ grep <args>
 
 sg <args>
 sysroot-grep <args>
-   Run 'grep -r <args> $BUILDDIR/tmp/sysroots/$MACHINE'.
+   Run 'grep -r <args> $BUILDDIR/tmp/sysroots-components/$MACHINE'.
 
 glg [-n <num commits>] [-i] <regex>
 git-log-grep [-n <num commits>] [-i] <regex>
@@ -1078,7 +1078,7 @@ def main(args):
                     machine = val['MACHINE']
                 else:
                     die('Could not determine MACHINE.')
-                sysroot_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots', machine)
+                sysroot_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots-components', machine)
                 print_matches(grep(cmd_args,
                                    [view_action, edit_action],
                                    case_sensitive,
@@ -1098,7 +1098,7 @@ def main(args):
             elif cmd in ['sf', 'sysroot-find', 'wsf', 'work-shared-find']:
                 check_builddir()
                 if cmd in ['sf', 'sysroot-find']:
-                    search_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots')
+                    search_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots-components')
                 else:
                     search_dir = os.path.join(BUILDDIR, 'tmp', 'work-shared')
                 if os.path.isdir(search_dir):

@@ -75,7 +75,7 @@ ye() {
         "sd"|"sysroot"|"sysrootdir")
             $YE_SCRIPT plumbing x MACHINE
             local machine=`yecd_get_bb_var MACHINE`
-            [ -n "$machine" ] && cd $BUILDDIR/tmp/sysroots/$machine
+            [ -n "$machine" ] && cd $BUILDDIR/tmp/sysroots-components/$machine
             ;;
         "src"|"sources")
             local recipe=$2
