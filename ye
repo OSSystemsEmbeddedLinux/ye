@@ -348,10 +348,14 @@ def print_matches(matches, plumbing_cmd=None):
 
 def pkg_view(file):
     ext = os.path.splitext(file)[1]
-    if ext in '.ipk':
-        os.system("ar p %s data.tar.gz | tar tvzf -" % file)
-    if ext in '.deb':
-        os.system("ar p %s data.tar.xz | tar tvJf -" % file)
+    if ext in [ '.deb', '.ipk' ]:
+        comp_type = os.popen("ar t %s" % file).read()
+        if 'data.tar.gz' in comp_type:
+            os.system("ar p %s data.tar.gz | tar tvzf -" % file)
+        elif 'data.tar.xz' in comp_type:
+            os.system("ar p %s data.tar.xz | tar tvJf -" % file)
+        else:
+            die("ERROR: Compression type not supported for %s" % ext)
     elif ext == '.rpm':
         os.system("rpm -qlvp %s" % file)
     else:
@@ -382,20 +386,22 @@ def pkg_extract(pkg_file, file, from_control):
     if os.path.exists(out_dir):
         die("%s already exists.  Won't clobber.  Aborting." % out_dir)
     os.makedirs(out_dir)
-    if ext in '.ipk':
-        tarball = 'data.tar.gz'
-        if from_control:
-            tarball = 'control.tar.gz'
-        status = os.system("ar p %s %s | tar xzf - %s -C %s" % (pkg_file, tarball, file, out_dir))
-        if not status:
-            print('Extracted to %s' % out_dir)
-    if ext in '.deb':
-        tarball = 'data.tar.xz'
-        if from_control:
-            tarball = 'control.tar.gz'
-        status = os.system("ar p %s %s | tar xJf - %s -C %s" % (pkg_file, tarball, file, out_dir))
-        if not status:
-            print('Extracted to %s' % out_dir)
+    if ext in [ '.deb', '.ipk' ]:
+        comp_type = os.popen("ar t %s" % pkg_file).read()
+        if 'data.tar.gz' in comp_type:
+            tarball = 'data.tar.gz'
+            if from_control:
+                tarball = 'control.tar.gz'
+            status = os.system("ar p %s %s | tar xzf - %s -C %s" % (pkg_file, tarball, file, out_dir))
+            if not status:
+                print('Extracted to %s' % out_dir)
+        if 'data.tar.xz' in comp_type:
+            tarball = 'data.tar.xz'
+            if from_control:
+                tarball = 'control.tar.gz'
+            status = os.system("ar p %s %s | tar xJf - %s -C %s" % (pkg_file, tarball, file, out_dir))
+            if not status:
+                print('Extracted to %s' % out_dir)
     elif ext == '.rpm':
         if is_program_available('rpm2cpio'):
             os.chdir(out_dir)
