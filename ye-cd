@@ -74,7 +74,7 @@ ye() {
             ;;
         "sd"|"sysroot"|"sysrootdir")
             $YE_SCRIPT plumbing x MACHINE
-            local machine=`yecd_get_bb_var MACHINE`
+            local machine=`yecd_get_bb_var MACHINE | tr - _`
             [ -n "$machine" ] && cd $BUILDDIR/tmp/sysroots-components/$machine
             ;;
         "src"|"sources")
@@ -96,7 +96,7 @@ ye() {
         "pkg"|"packages")
             $YE_SCRIPT plumbing x IMAGE_PKGTYPE MACHINE
             local pkg_type=`yecd_get_bb_var IMAGE_PKGTYPE`
-            local machine=`yecd_get_bb_var MACHINE`
+            local machine=`yecd_get_bb_var MACHINE | tr - _`
             [ -n "$pkg_type" ] && [ -n "$machine" ] && \
                 cd $BUILDDIR/tmp/deploy/$pkg_type/$machine
             ;;
