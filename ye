@@ -303,10 +303,10 @@ def find_workdir(pattern, exact):
     if not exact:
         pattern = '.*%s.*' % pattern
     re_pattern = re.compile(pattern)
-    paths = glob.glob(os.path.join(BUILDDIR, 'tmp', 'work', '*', '*', '*'))
+    paths = glob.glob(os.path.join(BUILDDIR, 'tmp', 'work', '*', '*'))
     for path in paths:
         if os.path.isdir(path):
-            dir = os.path.abspath(os.path.join(path, os.pardir))
+            dir = os.path.basename(path)
             if re_pattern.match(dir):
                 results.append(path)
     return results
