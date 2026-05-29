@@ -9,10 +9,9 @@ the directory structure adopted by O.S. Systems to organize projects
 that use the Yocto Project.  `ye` provides means to quickly locate
 files and directories into projects' directory tree, and act on them.
 
-=== The directory layout assumed by ye
+=== The directory layouts understood by ye
 
-The infrastructure adopted by O.S. Systems assumes the following
-directory layout:
+`ye` supports the legacy O.S. Systems layout:
 
 ....
 <project>
@@ -30,6 +29,12 @@ of all projects (git repositories) will be stored.
 
 The directory layout in the `<build dir>` directory follows the
 standard layout as determined by the Yocto Project.
+
+For current Yocto Project releases, `ye` also understands projects
+set up with `oe-init-build-env`, `OEROOT`, `<build dir>/conf/bblayers.conf`,
+and layer checkouts under either `sources/` or `layers/`.  If automatic
+detection is not enough, `YE_SOURCE_DIRS` can be set to a colon-separated
+list of layer or source directories.
 
 === Notes on arguments, environment and interactive behavior
 
@@ -62,12 +67,13 @@ Usage: ye <command> [ <options> ]
 
 f [-e] <regex>
 find [-e] <regex>
-    Locate paths (in the "sources" directory) that match the given
-    expression <regex>.  <regex> is case insensitive and implicitly
-    surrounded by '.*'.  -e disables the implicit use of '.*' around
-    the given <regex>.  Note that, unless <regex> contains /, matching
-    is attempted on filenames only (not on dirnames).  If <regex>
-    contains /, matching is attempted on the full path.
+    Locate paths in configured Yocto layer/source directories that
+    match the given expression <regex>.  <regex> is case insensitive
+    and implicitly surrounded by '.*'.  -e disables the implicit use
+    of '.*' around the given <regex>.  Note that, unless <regex>
+    contains /, matching is attempted on filenames only (not on
+    dirnames).  If <regex> contains /, matching is attempted on the
+    full path.
 
 v [-e] <regex>
 view [-e] <regex>
@@ -157,11 +163,12 @@ run [-e] <recipe pattern> [<run script pattern>]
 
 g <args>
 grep <args>
-    Run 'repo grep <args>'.
+    Run 'repo grep <args>' in repo-based workspaces, otherwise run
+    'git grep <args>' across configured layers.
 
 sg <args>
 sysroot-grep <args>
-   Run 'grep -r <args> $BUILDDIR/tmp/sysroots/$MACHINE'.
+   Run 'grep -r <args>' across available sysroot directories.
 
 glg [-n <num commits>] [-i] <regex>
 git-log-grep [-n <num commits>] [-i] <regex>
@@ -214,14 +221,14 @@ cd [<dir shortcut>]
         Change to the sysroot directory for MACHINE
 
     src [<recipe>]
-        Change to <recipes>'s source dir or to TOPDIR/sources
-        if <recipe> is not provided
+        Change to <recipe>'s source dir or to the detected source/layers
+        directory if <recipe> is not provided
 
     img
         Change to BUILDDIR/tmp/deploy/MACHINE/image/
 
     pkg
-        Change to BUILDDIR/tmp/deploy/PKG_TYPE/image/
+        Change to BUILDDIR/tmp/deploy/PKG_TYPE or its MACHINE subdir
 
     manifest
         Change to TOPDIR/.repo/manifests
@@ -240,13 +247,16 @@ some file types (e.g., packages).  The following sections provide a
 more in-depth explanation about them.
 
 
-==== Finding and operating on files in the `sources` directory
+==== Finding and operating on files in layer/source directories
 
 The `find` command (short: `f`) can be used to locate files under the
-`sources` directory. It's argument is a regular expression that will
-be matched against pathnames.  If the given regex contains `/`,
-matching is attempted on filenames only (not on dirnames).  If the
-given regex contains `/`, matching is attempted on the full path.
+configured Yocto layers.  `ye` gets those layers from `bblayers.conf`
+when possible, otherwise it falls back to legacy `sources/`, modern
+`layers/`, `OEROOT` or `YE_SOURCE_DIRS`.  Its argument is a regular
+expression that will be matched against pathnames.  If the given regex
+does not contain `/`, matching is attempted on filenames only (not on
+dirnames).  If the given regex contains `/`, matching is attempted on
+the full path.
 
 After locating files that match the given pattern, `ye` will prompt
 you to select one of the matches and, next, what to do with it.  In
@@ -341,7 +351,10 @@ for the one you really want to see.
 
 The `sysroot-find` (short: `sf`) command is pretty much equivalent to
 the `find` command, except it locates files under the sysroots
-directory (`<build dir>/tmp/sysroots`).
+directories.  Current Yocto releases primarily use
+`<build dir>/tmp/sysroots-components` and per-recipe
+`recipe-sysroot` directories; older `<build dir>/tmp/sysroots` trees
+are still used as a fallback when present.
 
 
 ==== Finding and displaying files in the `work-shared` directory
@@ -648,19 +661,15 @@ detail.
 
 ==== Finding text in source files
 
-The `grep` command is a thin wrapper around `repo grep` (`repo` is the
-tool used by O.S. Systems to manage multiple git repositories -- see
-the http://doc.ossystems.com.br/managing-platforms.html[Managing
-platforms based on the Yocto Project] document for more information).
-Basically, `repo grep <arguments>` will run `git grep <arguments>` on
-each repository (in the `sources` directory) which is part of the
-project.
+The `grep` command searches configured Yocto layers.  In legacy
+repo-based workspaces it uses `repo grep`; otherwise it runs `git grep`
+across detected layer repositories.  If the layers are not git
+repositories, it falls back to recursive `grep`.
 
-The `grep` command will run `repo grep` plus the arguments provided on
-the command line (any valid argument for `git grep`) and will prompt
-you to select one of the matches, then the action to apply on the
-selected file.  In case of a single match, you'll be only prompted for
-the action.
+The `grep` command will pass the arguments provided on the command
+line to the underlying grep command and will prompt you to select one
+of the matches, then the action to apply on the selected file.  In
+case of a single match, you'll be only prompted for the action.
 
 Example:
 
@@ -683,9 +692,8 @@ Option (ENTER to cancel): 2v
 ==== Finding text in files in the sysroot directory
 
 The `sysroot-grep` (short: `sg`) command is similar to the `grep`
-command, but instead of searching for matches in the `sources`
-directory, it recursively searches for matches in the `sysroot`
-directory (`<build dir>/tmp/sysroots/<machine>`, specifically).
+command, but instead of searching for matches in source directories,
+it recursively searches for matches in available sysroot directories.
 
 Example:
 
@@ -852,10 +860,11 @@ STAGING_DIR_TARGET ==> ${STAGING_DIR}/${MACHINE}
 ....
 
 
-Except for the `find` and `grep` commands, all commands expect the
-`BUILDDIR` environment variable to be set in the environment.  This
-variable is automatically set by the `setup-environment` script
-provided by O.S. Systems for the Yocto Project-based projects.
+Most build-output commands expect the `BUILDDIR` environment variable
+to be set in the environment.  This variable is set by the usual Yocto
+environment setup scripts.  If it is not set, `ye` will also try to
+detect a build directory by walking up from the current directory until
+it finds `conf/bblayers.conf`.
 
 
 === Moving around: changing directories
@@ -909,7 +918,9 @@ will do that automatically if you have `ye` in your source tree.
 displaying and editing files, respectively.
 
 The configuration is via environment variables.  `ye` uses `YE_PAGER`
-and `YE_EDITOR` for pager and editor, respectively.
+and `YE_EDITOR` for pager and editor, respectively.  `YE_SOURCE_DIRS`
+can be set to a colon-separated list of source or layer directories
+when the automatic layer detection is not appropriate.
 
 For the editor, `ye` first checks if `YE_EDITOR` is set in the
 environment.  If it is not set, it checks the `EDITOR` environment
@@ -926,12 +937,9 @@ cannot be found, you'll get an error.
 
 == Requirements
 
-A Python installation and the directory structure in the layout
-created by O.S. System's Yocto Project-based platforms.
-
-`ye` has been more extensively tested with Python version 2.7.3, but
-it should work with other recent Python 2.x versions and with Python
-3.x.
+A Python 3 installation and a Yocto Project build tree.  `ye` supports
+both the legacy O.S. Systems `.repo`/`sources` layout and current
+Yocto layouts that expose layers through `conf/bblayers.conf`.
 
 For the `doc` command, the http://lxml.de/[lxml] module for Python is
 required.

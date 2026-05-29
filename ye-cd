@@ -75,13 +75,14 @@ ye() {
         "sd"|"sysroot"|"sysrootdir")
             $YE_SCRIPT plumbing x MACHINE
             local machine=`yecd_get_bb_var MACHINE | tr - _`
-            [ -n "$machine" ] && cd $BUILDDIR/tmp/sysroots-components/$machine
+            local sysrootdir=`$YE_SCRIPT plumbing sysrootdir "$machine"`
+            [ -n "$sysrootdir" ] && cd "$sysrootdir"
             ;;
         "src"|"sources")
             local recipe=$2
             if [ -z "$recipe" ]; then
-                topdir=`$YE_SCRIPT plumbing topdir`
-                [ $? -eq 0 ] && cd $topdir/sources
+                local sourcedir=`$YE_SCRIPT plumbing sourcedir`
+                [ -n "$sourcedir" ] && cd "$sourcedir"
             else
                 cd $BUILDDIR
                 $YE_SCRIPT plumbing find $recipe
@@ -97,8 +98,8 @@ ye() {
             $YE_SCRIPT plumbing x IMAGE_PKGTYPE MACHINE
             local pkg_type=`yecd_get_bb_var IMAGE_PKGTYPE`
             local machine=`yecd_get_bb_var MACHINE | tr - _`
-            [ -n "$pkg_type" ] && [ -n "$machine" ] && \
-                cd $BUILDDIR/tmp/deploy/$pkg_type/$machine
+            local pkgdir=`$YE_SCRIPT plumbing pkgdir "$pkg_type" "$machine"`
+            [ -n "$pkgdir" ] && cd "$pkgdir"
             ;;
         "manifest"|"manifests")
             topdir=`$YE_SCRIPT plumbing topdir`

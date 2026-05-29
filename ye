@@ -28,6 +28,7 @@ import glob
 import urllib.request, urllib.parse, urllib.error
 import locale
 import subprocess
+import ye_compat
 
 # lxml is required for parsing the documentation XML files
 is_lxml_available = True
@@ -36,7 +37,10 @@ try:
 except:
     is_lxml_available = False
 
-encoding = locale.getdefaultlocale()[1]
+try:
+    encoding = locale.getencoding()
+except AttributeError:
+    encoding = locale.getdefaultlocale()[1]
 if not encoding:
     sys.stderr.write('WARNING: could not determine locale. Forcing UTF-8.\n')
     encoding = 'UTF-8'
@@ -89,7 +93,7 @@ YE_EDITOR += ' "%s"'
 
 BUILDDIR = None
 try:
-    BUILDDIR = os.environ['BUILDDIR']
+    BUILDDIR = ye_compat.get_builddir()
 except:
     pass
 
@@ -107,13 +111,16 @@ bold = '\033[1m{}\033[0m'
 
 def colorize_layer(path):
     path_parts = path.split('/')
-    sources_idx = None
+    source_idx = None
     try:
-        sources_idx = path_parts.index('sources')
+        source_idx = path_parts.index('sources')
     except ValueError:
-        return path
-    if sources_idx < (len(path_parts) - 2):
-        layer_idx = sources_idx + 1
+        try:
+            source_idx = path_parts.index('layers')
+        except ValueError:
+            source_idx = None
+    if source_idx is not None and source_idx < (len(path_parts) - 2):
+        layer_idx = source_idx + 1
         path_parts[layer_idx] = bold.format(path_parts[layer_idx])
     return '/'.join(path_parts)
 
@@ -146,25 +153,24 @@ def download_file(uri, output_file):
         output_fd.write(uri_fd.read())
 
 def find_yocto_root():
-    def inner_find(dir):
-        repo_dir = os.path.join(dir, '.repo')
-        if os.path.exists(repo_dir) and os.path.isdir(repo_dir):
-            return dir
-        elif dir == '/':
-            return False
-        else:
-            return inner_find(os.path.dirname(dir))
-    if BUILDDIR:
-        yocto_root = inner_find(BUILDDIR)
-    else:
-        yocto_root = inner_find(os.getcwd())
+    yocto_root = ye_compat.workspace_root()
     return yocto_root or die("ERROR: won't search from /.")
 
 
+def find_source_dirs():
+    dirs = ye_compat.source_dirs()
+    return dirs or die("ERROR: could not determine Yocto layer/source directories.")
+
+
 def find_files(basedir, maxdepth=None, pattern='.*'):
+    if isinstance(basedir, list):
+        results = []
+        for dir in basedir:
+            results.extend(find_files(dir, maxdepth, pattern))
+        return results
     depth = 0
     re_pattern = re.compile(pattern)
-    re_skip_pattern = re.compile('.*~$|^\.#|^#.*#$|.*\.pyc$')
+    re_skip_pattern = re.compile(r'.*~$|^\.#|^#.*#$|.*\.pyc$')
     results = []
     match_whole_path = '/' in pattern
     for root, dirs, files in os.walk(basedir):
@@ -482,7 +488,7 @@ def list_temp_files(file_type, recipe_pattern, log_pattern, exact, raw, apply_re
         version_dir = version_dirs[0]
     log_dir = os.path.join(version_dir, 'temp')
     all_files = find_files(log_dir,
-                           pattern='%s\..*%s.*' % (file_type, log_pattern))
+                           pattern=r'%s\..*%s.*' % (file_type, log_pattern))
     logs = [ f for f in all_files if os.path.islink(f) ]
     log = None
     if logs:
@@ -503,23 +509,87 @@ def list_logs(recipe_pattern, log_pattern, exact, raw, apply_replacements):
 def list_run_scripts(recipe_pattern, log_pattern, exact):
     list_temp_files('run', recipe_pattern, log_pattern, exact, True, False)
 
+
+def ensure_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def prefix_grep_paths(output, root):
+    lines = output.decode(encoding, errors='replace').split('\n')[:-1]
+    prefixed = []
+    for line in lines:
+        file, sep, rest = line.partition(':')
+        if sep and not os.path.isabs(file):
+            line = os.path.join(root, file) + sep + rest
+        prefixed.append(line)
+    return prefixed
+
+
+def run_git_grep(args, dirs):
+    results = []
+    for repo in ye_compat.git_repos(dirs):
+        p = subprocess.Popen(['git', '-C', repo, 'grep'] + args,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        out, _ = p.communicate()
+        results.extend(prefix_grep_paths(out, repo))
+    return results
+
+
+def run_recursive_grep(args, dirs):
+    results = []
+    for dir in dirs:
+        p = subprocess.Popen(['grep', '-r'] + args + [dir],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        out, _ = p.communicate()
+        results.extend(out.decode(encoding, errors='replace').split('\n')[:-1])
+    return results
+
+
+def apply_action(file, actions, shortcut=None):
+    if len(actions) == 1:
+        actions[0][2](file)
+        return file
+    if shortcut:
+        for action in actions:
+            if action[1] == shortcut:
+                action[2](file)
+                return file
+    action = prompt_action([ (a[1], a[0]) for a in actions ])
+    actions[action][2](file)
+    return file
+
+
 def grep(args, actions, case_sensitive, dir=None, git=False):
-    if git and dir:
-        os.chdir(dir)
-        p = subprocess.Popen(['git', 'grep'] + args, stdout=subprocess.PIPE)
-    elif dir:
-        os.chdir(dir)
-        p = subprocess.Popen(['grep', '-r'] + args, stdout=subprocess.PIPE)
-    else:
-        p = subprocess.Popen(['repo', 'grep'] + args, stdout=subprocess.PIPE)
     regex_pattern = [ arg for arg in args if not arg.startswith('-') ]
     if not regex_pattern:
         die('Could not determine the pattern for grep.')
     if len(regex_pattern) > 1:
         die('Multiple patterns for grep is not supported.')
     regex_pattern = regex_pattern[0]
-    output = p.communicate()[0]
-    results = output.decode(encoding).split('\n')[:-1] # the last line is always empty
+
+    if git and dir:
+        results = run_git_grep(args, ensure_list(dir))
+    elif dir:
+        results = run_recursive_grep(args, ensure_list(dir))
+    else:
+        repo_root = ye_compat.get_repo_root()
+        if repo_root and ye_compat.is_program_available('repo'):
+            p = subprocess.Popen(['repo', 'grep'] + args,
+                                 cwd=repo_root,
+                                 stdout=subprocess.PIPE)
+            results = p.communicate()[0].decode(encoding, errors='replace').split('\n')[:-1]
+        else:
+            source_dirs = find_source_dirs()
+            results = run_git_grep(args, source_dirs)
+            if not results:
+                results = run_recursive_grep(args, source_dirs)
+
     if sys.stdout.isatty():
         shortcut = None
         if len(results) == 0:
@@ -541,27 +611,22 @@ def grep(args, actions, case_sensitive, dir=None, git=False):
         else:
             actions = [view_action, edit_action]
         file = match.split(':')[0] # let's hope filenames don't contain ':'
+        if os.path.isabs(file) and os.path.exists(file):
+            return apply_action(file, actions, shortcut)
         return find(file,
-                    dir or os.path.join(find_yocto_root(), 'sources'),
+                    dir or find_source_dirs(),
                     False,
                     actions)
     else:
         return results
 
 def git_log_grep(pattern, max_commits, case_sensitive):
-    root_dir = find_yocto_root()
-    os.chdir(root_dir)
-    repos = []
-    repop = subprocess.Popen(['repo', 'list'], stdout=subprocess.PIPE)
-    repos = repop.communicate()[0].strip()
-    repos = [ line.split(':')[0].strip() for line in repos.decode(encoding).split('\n') ]
-    repo_paths = [ os.path.realpath(os.path.join(root_dir, repo)) for repo in repos ]
-
+    repo_paths = ye_compat.git_repos(find_source_dirs())
     results = {}
     for repo_path in repo_paths:
         results[repo_path] = None
-        os.chdir(repo_path)
-        gitlog = subprocess.Popen(('git', 'log', '-n', str(max_commits), '--oneline'),
+        gitlog = subprocess.Popen(('git', '-C', repo_path, 'log', '-n',
+                                   str(max_commits), '--oneline'),
                                   stdout=subprocess.PIPE)
         if case_sensitive:
             grep_cmd = ('grep', pattern)
@@ -575,13 +640,13 @@ def git_log_grep(pattern, max_commits, case_sensitive):
         if out:
             results[repo_path] = out.strip().split(b'\n')
 
-    sources_dir = os.path.realpath(os.path.join(root_dir, 'sources'))
+    root_dir = find_yocto_root()
     options = []
     for repo_path, commits in results.items():
-        repo_dir = repo_path[len(sources_dir) + 1:] # drop sources_dir
+        repo_dir = os.path.relpath(repo_path, root_dir)
         if commits:
             for commit in commits:
-                options.append('%s %s' % (repo_dir, commit))
+                options.append('%s %s' % (repo_dir, commit.decode(encoding)))
 
     if sys.stdout.isatty():
         shortcut = None
@@ -600,9 +665,8 @@ def git_log_grep(pattern, max_commits, case_sensitive):
             match = options[0]
 
         repo_dir, commit_hash = match.split()[0:2]
-        repo_path = os.path.join(sources_dir, repo_dir)
-        os.chdir(repo_path)
-        os.system('git show %s' % commit_hash)
+        repo_path = os.path.join(root_dir, repo_dir)
+        os.system('git -C "%s" show %s' % (repo_path, commit_hash))
     else:
         for option in options:
             print(option)
@@ -687,38 +751,68 @@ def doc(pattern, exact):
         print('\n=== ' + var)
         print(doc)
 
-    doc_data_dir = os.path.join(YE_DIR, 'doc-data')
-    ref_variables_xml = os.path.join(doc_data_dir, 'ref-manual', 'ref-variables.xml')
+    def element_text(elt):
+        return remove_duplicate_spaces(' '.join(elt.itertext())).strip()
 
-    # Check if we need to update documentation data
-    update_window = 7 * 24 * 3600 # 7 days
-    # We use documentation from master
-    doc_base_uri = 'https://git.yoctoproject.org/cgit/cgit.cgi/yocto-docs/plain/documentation'
-    if (not os.path.exists(ref_variables_xml) or
-        os.stat(ref_variables_xml).st_mtime < time.time() - update_window):
-        print('Updating documentation data...')
-        download_file('%s/poky.ent' % doc_base_uri,
-                      os.path.join(doc_data_dir, 'poky.ent'))
-        download_file('%s/ref-manual/ref-variables.xml' % doc_base_uri,
-                      ref_variables_xml)
+    def parse_current_html(path):
+        parser = etree.HTMLParser()
+        tree = etree.parse(path, parser)
+        result = {}
+        for dt in tree.xpath('//dt[starts-with(@id, "term-")]'):
+            var = element_text(dt).replace('¶', '').strip()
+            if not var:
+                continue
+            var = var.split()[0]
+            var = re.sub(r'[^A-Za-z0-9_:+.-].*$', '', var)
+            dd = dt.getnext()
+            while dd is not None and dd.tag != 'dd':
+                dd = dd.getnext()
+            if dd is not None:
+                result[var] = element_text(dd)
+        return result
 
-    tree = etree.parse(ref_variables_xml)
-    glossentries = tree.findall('//glossentry')
-    docs = {}
-
-    orig_pattern = pattern
-    if not exact:
-        pattern = '.*%s.*' % pattern
-
-    for e in glossentries:
-        glossterm = e.find('glossterm').text
-        if re.compile(pattern).match(glossterm):
+    def parse_legacy_xml(path):
+        tree = etree.parse(path)
+        result = {}
+        for e in tree.findall('//glossentry'):
+            glossterm = e.find('glossterm').text
             glossdef = e.find('glossdef')
             paragraphs = glossdef.findall('para')
             text = []
             for p in paragraphs:
                 text.append(parse_paragraph(p))
-            docs[glossterm] = '\n\n'.join(text)
+            result[glossterm] = '\n\n'.join(text)
+        return result
+
+    doc_data_dir = os.path.join(YE_DIR, 'doc-data')
+    variables_html = os.path.join(doc_data_dir, 'ref-manual', 'variables.html')
+    ref_variables_xml = os.path.join(doc_data_dir, 'ref-manual', 'ref-variables.xml')
+
+    # Check if we need to update documentation data
+    update_window = 7 * 24 * 3600 # 7 days
+    doc_base_uri = 'https://docs.yoctoproject.org'
+    if (not os.path.exists(variables_html) or
+        os.stat(variables_html).st_mtime < time.time() - update_window):
+        print('Updating documentation data...')
+        download_file('%s/ref-manual/variables.html' % doc_base_uri,
+                      variables_html)
+
+    try:
+        all_docs = parse_current_html(variables_html)
+    except:
+        all_docs = {}
+        if os.path.exists(ref_variables_xml):
+            all_docs = parse_legacy_xml(ref_variables_xml)
+
+    orig_pattern = pattern
+    if not exact:
+        pattern = '.*%s.*' % pattern
+    re_pattern = re.compile(pattern, re.IGNORECASE)
+
+    docs = {}
+    for var, text in all_docs.items():
+        if re_pattern.match(var):
+            docs[var] = text
     if docs:
         options = list(docs.keys())
         if len(options) == 1:
@@ -782,11 +876,31 @@ def handle_plumbing(args):
                 die('plumbing wd: missing argument.')
         elif cmd == 'topdir':
             print(find_yocto_root())
+        elif cmd == 'sourcedir':
+            source_dir = ye_compat.source_root_dir()
+            if source_dir:
+                print(source_dir)
+            else:
+                die('plumbing sourcedir: could not determine source directory.')
+        elif cmd == 'sysrootdir':
+            dirs = ye_compat.sysroot_dirs(cmd_args[0] if cmd_args else None)
+            if dirs:
+                print(dirs[0])
+            else:
+                die('plumbing sysrootdir: could not determine sysroot directory.')
+        elif cmd == 'pkgdir':
+            pkg_type = cmd_args[0] if len(cmd_args) > 0 else None
+            machine = cmd_args[1] if len(cmd_args) > 1 else None
+            pkg_dir = ye_compat.deploy_pkg_dir(pkg_type, machine)
+            if pkg_dir:
+                print(pkg_dir)
+            else:
+                die('plumbing pkgdir: could not determine package deploy directory.')
         elif cmd == 'x':
             if cmd_args:
                 expand_mod = __import__('bb-expand-vars')
                 os.chdir(BUILDDIR)
-                val = expand_mod.show_var_expansions('core-image-minimal',
+                val = expand_mod.show_var_expansions(None,
                                                      cmd_args,
                                                      True)
                 if val:
@@ -795,7 +909,7 @@ def handle_plumbing(args):
                 die('plumbing x: missing argument.')
         elif cmd == 'find':
             print_matches(find(cmd_args[0],
-                               os.path.join(find_yocto_root(), 'sources'),
+                               find_source_dirs(),
                                exact,
                                [('Print', 'p', lambda file: print(file))]),
                           plumbing_cmd=cmd)
@@ -815,12 +929,13 @@ def usage(exit_code=None, cmd=None):
 
 f [-e] <regex>
 find [-e] <regex>
-    Locate paths (in the "sources" directory) that match the given
-    expression <regex>.  <regex> is case insensitive and implicitly
-    surrounded by '.*'.  -e disables the implicit use of '.*' around
-    the given <regex>.  Note that, unless <regex> contains /, matching
-    is attempted on filenames only (not on dirnames).  If <regex>
-    contains /, matching is attempted on the full path.
+    Locate paths in configured Yocto layer/source directories that
+    match the given expression <regex>.  <regex> is case insensitive
+    and implicitly surrounded by '.*'.  -e disables the implicit use
+    of '.*' around the given <regex>.  Note that, unless <regex>
+    contains /, matching is attempted on filenames only (not on
+    dirnames).  If <regex> contains /, matching is attempted on the
+    full path.
 
 v [-e] <regex>
 view [-e] <regex>
@@ -910,11 +1025,12 @@ run [-e] <recipe pattern> [<run script pattern>]
 
 g <args>
 grep <args>
-    Run 'repo grep <args>'.
+    Run 'repo grep <args>' in repo-based workspaces, otherwise run
+    'git grep <args>' across configured layers.
 
 sg <args>
 sysroot-grep <args>
-   Run 'grep -r <args> $BUILDDIR/tmp/sysroots-components/$MACHINE'.
+   Run 'grep -r <args>' across available sysroot directories.
 
 glg [-n <num commits>] [-i] <regex>
 git-log-grep [-n <num commits>] [-i] <regex>
@@ -967,14 +1083,14 @@ cd [<dir shortcut>]
         Change to the sysroot directory for MACHINE
 
     src [<recipe>]
-        Change to <recipes>'s source dir or to TOPDIR/sources
-        if <recipe> is not provided
+        Change to <recipe>'s source dir or to the detected source/layers
+        directory if <recipe> is not provided
 
     img
         Change to BUILDDIR/tmp/deploy/MACHINE/image/
 
     pkg
-        Change to BUILDDIR/tmp/deploy/PKG_TYPE/image/
+        Change to BUILDDIR/tmp/deploy/PKG_TYPE or its MACHINE subdir
 
     manifest
         Change to TOPDIR/.repo/manifests
@@ -1086,14 +1202,16 @@ def main(args):
                 check_builddir()
                 expand_mod = __import__('bb-expand-vars')
                 os.chdir(BUILDDIR)
-                val = expand_mod.show_var_expansions('core-image-minimal',
+                val = expand_mod.show_var_expansions(None,
                                                      ['MACHINE'],
                                                      True)
                 if val:
                     machine = val['MACHINE']
                 else:
                     die('Could not determine MACHINE.')
-                sysroot_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots-components', machine)
+                sysroot_dir = ye_compat.sysroot_dirs(machine)
+                if not sysroot_dir:
+                    die('Could not determine a sysroot directory.')
                 print_matches(grep(cmd_args,
                                    [view_action, edit_action],
                                    case_sensitive,
@@ -1107,16 +1225,16 @@ def main(args):
                 else:
                     actions = [view_action, edit_action]
                 print_matches(find(pattern,
-                                   os.path.join(find_yocto_root(), 'sources'),
+                                   find_source_dirs(),
                                    exact,
                                    actions))
             elif cmd in ['sf', 'sysroot-find', 'wsf', 'work-shared-find']:
                 check_builddir()
                 if cmd in ['sf', 'sysroot-find']:
-                    search_dir = os.path.join(BUILDDIR, 'tmp', 'sysroots-components')
+                    search_dir = ye_compat.sysroot_dirs()
                 else:
                     search_dir = os.path.join(BUILDDIR, 'tmp', 'work-shared')
-                if os.path.isdir(search_dir):
+                if isinstance(search_dir, list) or os.path.isdir(search_dir):
                     print_matches(find(pattern,
                                        search_dir,
                                        exact,

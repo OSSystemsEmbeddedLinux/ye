@@ -2,6 +2,7 @@
 # -*- encoding: utf-8 -*-
 import os
 import sys
+import ye_compat
 
 PATH = os.getenv('PATH').split(':')
 bitbake_paths = [os.path.join(path, '..', 'lib')
@@ -12,30 +13,37 @@ if not bitbake_paths:
 sys.path[0:0] = bitbake_paths
 
 def find_yocto_root():
-    def inner_find(dir):
-        repo_dir = os.path.join(dir, '.repo')
-        if os.path.exists(repo_dir) and os.path.isdir(repo_dir):
-            return dir
-        elif dir == '/':
-            return False
-        else:
-            return inner_find(os.path.dirname(dir))
-    BUILDDIR = os.environ.get('BUILDDIR')
-    if BUILDDIR:
-        yocto_root = inner_find(BUILDDIR)
-    else:
-        yocto_root = inner_find(os.getcwd())
-    return yocto_root or die("ERROR: won't search from /.")
+    return ye_compat.workspace_root()
 
 def get_yocto_path():
-    types = ['poky', 'openembedded-core', 'oe']
-    base = find_yocto_root()
-    paths = [os.path.join(base, 'sources', t, 'scripts/lib') for t in types]
-    path = list(filter(os.path.exists, paths))
-    if len(path) != 1:
+    candidates = []
+    for env_name in ['OEROOT', 'COREBASE']:
+        if os.environ.get(env_name):
+            candidates.append(os.environ[env_name])
+
+    root = find_yocto_root()
+    if root:
+        candidates.extend([
+            os.path.join(root, 'poky'),
+            os.path.join(root, 'openembedded-core'),
+            os.path.join(root, 'sources', 'poky'),
+            os.path.join(root, 'sources', 'openembedded-core'),
+            os.path.join(root, 'sources', 'oe'),
+        ])
+
+    for layer in ye_compat.source_dirs():
+        candidates.extend([
+            layer,
+            os.path.dirname(layer),
+            os.path.dirname(os.path.dirname(layer)),
+        ])
+
+    paths = ye_compat.existing_dirs(
+        [os.path.join(path, 'scripts', 'lib') for path in candidates])
+    if len(paths) < 1:
         print("ERROR: Can't find scripts path")
         sys.exit(1)
-    sys.path.append(path[0])
+    sys.path.append(paths[0])
 
 basepath = ''
 
@@ -154,13 +162,23 @@ def expand_expr(expr, metadata):
 
 def show_var_expansions(recipe, var, plumbing_mode=False):
     # When plumbing_mode is truthy, var is a list of variables
+    tinfoil = None
     try:
         tinfoil = setup_tinfoil(config_only=True, basepath=basepath)
-        tinfoil.parseRecipes()
+        metadata = getattr(tinfoil, 'config_data', None)
+        if recipe:
+            if hasattr(tinfoil, 'parseRecipes'):
+                tinfoil.parseRecipes()
+            elif hasattr(tinfoil, 'parse_recipes'):
+                tinfoil.parse_recipes()
 
-        try:
-            metadata = tinfoil.parse_recipe(recipe)
-        except:
+            try:
+                metadata = tinfoil.parse_recipe(recipe)
+            except:
+                sys.exit(1)
+
+        if metadata is None:
+            sys.stderr.write('Could not load BitBake metadata.\n')
             sys.exit(1)
 
         if plumbing_mode:
@@ -182,7 +200,8 @@ def show_var_expansions(recipe, var, plumbing_mode=False):
             sys.exit(1)
 
     finally:
-        tinfoil.shutdown()
+        if tinfoil:
+            tinfoil.shutdown()
 
 
 if __name__ == '__main__':
