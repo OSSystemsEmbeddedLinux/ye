@@ -120,6 +120,37 @@ def expand_bitbake_path(path, variables):
     return os.path.expandvars(value)
 
 
+def quoted_values(line):
+    values = []
+    quote = None
+    value = []
+    escaped = False
+    for char in line:
+        if escaped:
+            if quote:
+                value.append(char)
+            escaped = False
+            continue
+        if char == '\\':
+            escaped = True
+            if quote:
+                value.append(char)
+            continue
+        if char in ['"', "'"]:
+            if quote == char:
+                values.append(''.join(value))
+                value = []
+                quote = None
+            elif quote is None:
+                quote = char
+            elif quote:
+                value.append(char)
+            continue
+        if quote:
+            value.append(char)
+    return values
+
+
 def parse_bblayers_conf(builddir=None):
     builddir = builddir or get_builddir()
     if not builddir:
@@ -130,7 +161,8 @@ def parse_bblayers_conf(builddir=None):
         return []
 
     try:
-        data = open(conf, 'r').read()
+        with open(conf, 'r') as fd:
+            data = fd.read()
     except OSError:
         return []
 
@@ -148,8 +180,8 @@ def parse_bblayers_conf(builddir=None):
         line = strip_comment(line).strip()
         if not re.match(r'^BBLAYERS(?:\s|[:?+.=:]|$)', line):
             continue
-        for match in re.finditer(r'"([^"]*)"', line):
-            for token in match.group(1).split():
+        for value in quoted_values(line):
+            for token in value.split():
                 expanded = expand_bitbake_path(token, variables)
                 if not os.path.isabs(expanded):
                     expanded = os.path.join(builddir, expanded)

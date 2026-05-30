@@ -168,21 +168,22 @@ def find_files(basedir, maxdepth=None, pattern='.*'):
         for dir in basedir:
             results.extend(find_files(dir, maxdepth, pattern))
         return results
-    depth = 0
     re_pattern = re.compile(pattern)
     re_skip_pattern = re.compile(r'.*~$|^\.#|^#.*#$|.*\.pyc$')
     results = []
     match_whole_path = '/' in pattern
     for root, dirs, files in os.walk(basedir):
         dirs[:] = [d for d in dirs if not d[0] == '.']
-        depth += 1
-        if maxdepth and depth > maxdepth:
-            return results
+        visible_dirs = list(dirs)
+        relroot = os.path.relpath(root, basedir)
+        depth = 1 if relroot == '.' else relroot.count(os.sep) + 2
+        if maxdepth and depth >= maxdepth:
+            dirs[:] = []
         all_files = None
         if match_whole_path:
-            all_files = [ os.path.join(root, f) for f in dirs + files ]
+            all_files = [ os.path.join(root, f) for f in visible_dirs + files ]
         else:
-            all_files = dirs + files
+            all_files = visible_dirs + files
         for file in all_files:
             if not re_skip_pattern.match(file) and re_pattern.match(file):
                 results.append(os.path.join(root, file))
