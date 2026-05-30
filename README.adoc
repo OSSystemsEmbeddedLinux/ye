@@ -131,7 +131,7 @@ pkg-extract [-e] [-c] <regex> [<file>]
     the package filename (without extension).  <file> must match the exact
     file name in the package (usually starts with ./).
     -c is specific to .deb and .ipk packages -- ye will extract files
-    from the control.tar.gz tarball in packages.
+    from the control archive in packages.
 
 wd [-e] <regex>
 workdir [-e] <regex>
