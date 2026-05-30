@@ -36,6 +36,24 @@ and layer checkouts under either `sources/` or `layers/`.  If automatic
 detection is not enough, `YE_SOURCE_DIRS` can be set to a colon-separated
 list of layer or source directories.
 
+In practice, `ye` determines the workspace in this order:
+
+. If `BUILDDIR` is set, use it as the build directory.
+. Otherwise, walk upward from the current directory until
+  `conf/bblayers.conf` is found.
+. If a repo workspace exists, use the directory containing `.repo` as
+  the project root.
+. Prefer layer directories declared in `conf/bblayers.conf`.
+. If layer detection fails, fall back to `YE_SOURCE_DIRS`,
+  `PLATFORM_ROOT_DIR`, `YE_TOPDIR`, `OEROOT`, `COREBASE`, and common
+  sibling directories such as `sources/`, `layers/`, `poky/`, and
+  `openembedded-core/`.
+
+Both single-quoted and double-quoted `BBLAYERS` values are supported.
+This matters for current Yocto Project setups, whose generated
+configuration files commonly use shell-like multi-line single-quoted
+assignments.
+
 === Notes on arguments, environment and interactive behavior
 
 Most `ye` commands accept a regular expression as argument. Thus, it's
@@ -52,6 +70,99 @@ the environment (because they have to run `bitbake` behind the scenes
 to find out things).  This variable is automatically set by the
 `setup-environment` script provided by O.S. Systems for Yocto
 Project-based projects.
+
+Commands that print matches are useful in scripts too.  When stdout is
+not a terminal, `ye` disables the interactive prompts and prints all
+matches to stdout, except for shortcut commands such as `view`,
+`pkg-info`, or `pkg-extract`, which perform their requested action
+when a single unambiguous match exists.
+
+
+== Installation and shell setup
+
+`ye` is shipped as an executable Python script.  It does not require a
+Python package installation step; put the checkout directory in
+`PATH`, or create a symlink to the `ye` executable from a directory
+already in `PATH`.
+
+Example:
+
+....
+$ export PATH=/path/to/ye:$PATH
+$ ye --help
+....
+
+For shell completion, source `ye-completion.sh` from your shell
+startup file:
+
+....
+$ . /path/to/ye-completion.sh
+....
+
+The `ye cd` command needs to affect the current shell process, so it
+is implemented by the `ye-cd` shell wrapper.  Source it after `ye` is
+available in `PATH`:
+
+....
+$ . /path/to/ye-cd
+....
+
+O.S. Systems' `setup-environment` script can do this automatically
+when `ye` is present in the source tree.  In other Yocto setups, add
+the `PATH`, completion, and `ye-cd` lines to your preferred shell
+startup file or project environment setup script.
+
+
+== Quick start
+
+. Enter or source a Yocto build environment:
++
+....
+$ source oe-init-build-env
+....
++
+or, in O.S. Systems workspaces:
++
+....
+$ source setup-environment
+....
+
+. Confirm `ye` can see the build and configured layers:
++
+....
+$ ye plumbing topdir
+$ ye f -e layer.conf
+....
+
+. Find and open a recipe or configuration file:
++
+....
+$ ye f busybox
+$ ye v conf/machine/qemuarm.conf
+....
+
+. Locate build output:
++
+....
+$ ye wd linux-yocto
+$ ye pf 'kernel_.*\.ipk'
+$ ye sf stdio.h
+....
+
+. Inspect a package:
++
+....
+$ ye pi 'kernel_.*\.ipk'
+$ ye pv 'kernel-image.*\.ipk'
+....
+
+. Use directory shortcuts by sourcing `ye-cd`:
++
+....
+$ . /path/to/ye-cd
+$ ye cd src
+$ ye cd wd linux-yocto
+....
 
 
 == Using ye
@@ -143,8 +254,8 @@ log [-e] [-H] <recipe pattern> [<log pattern>]
     Show the log files for <recipe>.  -e is only applied to
     <recipe pattern>.  <log pattern> is always implicitly surrounded
     by '.*', if provided.  If -H ("human readable") is given on the
-    command line, ye will try to make the lines that contain calls
-    to gcc/g++ look more readable.  If -R is provided, ye will apply
+    command line, ye will try to make the lines that contain calls to
+    clang/clang++/gcc/g++ look more readable.  If -R is provided, ye will apply
     some text replacements to make the output more readable.  Currently,
     ye reverse expands some common variables whose expansion pollutes
     log files with long paths.  The following variables are reverse
@@ -237,6 +348,98 @@ cd [<dir shortcut>]
 
     To use this feature, source'ing the ye-cd shell helper is required.
 ....
+
+
+=== Command summary
+
+[cols="1,2,4",options="header"]
+|===
+|Short |Long |Purpose
+
+|`f`
+|`find`
+|Find files in configured Yocto layer/source directories.
+
+|`v`
+|`view`
+|Find one file and open it with the configured pager.
+
+|`e`
+|`edit`
+|Find one file and open it with the configured editor.
+
+|`sf`
+|`sysroot-find`
+|Find files in available sysroot directories.
+
+|`wsf`
+|`work-shared-find`
+|Find files in `tmp/work-shared`.
+
+|`pf`
+|`pkg-find`
+|Find packages under `tmp/deploy/{deb,ipk,rpm}`.
+
+|`pv`
+|`pkg-view`
+|List files contained in a package.
+
+|`pi`
+|`pkg-info`
+|Show package metadata.
+
+|`ps`
+|`pkg-scripts`
+|List package control scripts or control members.
+
+|`px`
+|`pkg-extract`
+|Extract package data files, or control files with `-c`.
+
+|`wd`
+|`workdir`
+|Print recipe work directories under `tmp/work`.
+
+|`l`
+|`log`
+|Open BitBake task logs.
+
+|`r`
+|`run`
+|Open BitBake task run scripts.
+
+|`g`
+|`grep`
+|Search configured layers with `repo grep`, `git grep`, or recursive `grep`.
+
+|`sg`
+|`sysroot-grep`
+|Search text under available sysroot directories.
+
+|`glg`
+|`git-log-grep`
+|Search git commit summaries across layer repositories.
+
+|`gbh`
+|`grep-buildhistory`
+|Run `git grep` in the buildhistory repository.
+
+|`bh`
+|`buildhistory`
+|Show recent buildhistory changes.
+
+|`d`
+|`doc`
+|Search Yocto Project variable documentation.
+
+|`x`
+|`expand`
+|Expand BitBake variables and show recursive expansion.
+
+|`cd`
+|`cd`
+|Change to common project/build directories through the `ye-cd` shell wrapper.
+|===
 
 
 === Finding and operating on files
@@ -372,6 +575,25 @@ packages (`<build dir>/tmp/deploy/<package type>`).  `ye` supports the
 most common package formats generated by Yocto Project: `.ipk`, `.deb`
 and `.rpm`.
 
+For `.ipk` and `.deb` packages, `ye` reads the package as an `ar`
+archive and then processes the embedded `data.tar.*` or
+`control.tar.*` member.  The following tar payload formats are
+supported:
+
+* `data.tar`
+* `data.tar.gz`
+* `data.tar.xz`
+* `data.tar.zst`
+* `control.tar`
+* `control.tar.gz`
+* `control.tar.xz`
+* `control.tar.zst`
+
+The zstd variants are important for Scarthgap, Wrynose, and newer
+Yocto Project releases where IPK package payloads can use
+`data.tar.zst`.  RPM packages are handled through `rpm` and
+`rpm2cpio`.
+
 The actions for packages are different from the `find` command.  `ye`
 supports the following actions on packages:
 
@@ -383,6 +605,10 @@ supports the following actions on packages:
 
 `extract`:: extract package contents to a directory named after the
 package filename
+
+The `pkg-extract` command refuses to overwrite an existing extraction
+directory.  Run it from a scratch directory if you want to inspect a
+package without modifying the build tree.
 
 Just like the `view` and `edit` counterparts to the `find` command,
 `ye` provides `pkg-view` (short: `pv`), `pkg-info` (short: `pi`),
@@ -543,8 +769,9 @@ Option (ENTER to cancel): 4
 ....
 
 The `log` command also handles the `-H` option, which tries to make
-compiler command lines more readable (and numbers them).  See some
-examples below:
+compiler command lines more readable (and numbers them).  It
+recognizes common C/C++ compiler invocations such as `gcc`, `g++`,
+`clang`, and `clang++`.  See some examples below:
 
 Without `-H`:
 
@@ -717,7 +944,7 @@ Option (ENTER to cancel): 1v
 The `git-log-grep` command (short: `glg`) basically runs
 
 ....
-git log --oneline | grep <regex>"
+git log --oneline | grep <regex>
 ....
 
 for the given regular expressions on the summary lines of all git
@@ -767,7 +994,7 @@ index f4ea800..0c92ff9 100644
 
 ==== Finding text in the buildhistory repository
 
-The `grep-buildhistory` commmand (short: `gbh`) is a wrapper around
+The `grep-buildhistory` command (short: `gbh`) is a wrapper around
 `git grep` in the buildhistory directory.
 
 Example:
@@ -832,7 +1059,7 @@ Option (ENTER to cancel): 3
 ....
 
 `ye` maintains a cache of the Yocto project Reference Manual for seven
-days (under `$YE_DIR/doc-data`).  If the cache is older than seven
+days (under `$HOME/.ye/doc-data`).  If the cache is older than seven
 days, it will fetch the reference manual data and update the cache.
 
 
@@ -865,6 +1092,11 @@ to be set in the environment.  This variable is set by the usual Yocto
 environment setup scripts.  If it is not set, `ye` will also try to
 detect a build directory by walking up from the current directory until
 it finds `conf/bblayers.conf`.
+
+The `expand` command starts BitBake through Tinfoil.  It therefore has
+the same constraints as other BitBake clients: it needs a valid build
+environment and may fail if another process is holding the same
+BitBake server in an incompatible state.
 
 
 === Moving around: changing directories
@@ -914,18 +1146,48 @@ will do that automatically if you have `ye` in your source tree.
 
 == Configuration
 
-`ye` allows you to customize the pager and the editor it uses for
-displaying and editing files, respectively.
+`ye` is configured through environment variables.
 
-The configuration is via environment variables.  `ye` uses `YE_PAGER`
-and `YE_EDITOR` for pager and editor, respectively.  `YE_SOURCE_DIRS`
-can be set to a colon-separated list of source or layer directories
-when the automatic layer detection is not appropriate.
+[cols="1,4",options="header"]
+|===
+|Variable |Meaning
+
+|`BUILDDIR`
+|Yocto build directory.  If unset, `ye` tries to find a parent directory containing `conf/bblayers.conf`.
+
+|`YE_SOURCE_DIRS`
+|Colon-separated list of layer/source directories.  This overrides automatic source discovery.
+
+|`PLATFORM_ROOT_DIR`
+|Project root hint used by O.S. Systems environments.
+
+|`YE_TOPDIR`
+|Project root hint used when automatic discovery is not enough.
+
+|`OEROOT`
+|OpenEmbedded-Core or Poky root hint, usually set by `oe-init-build-env`.
+
+|`COREBASE`
+|OpenEmbedded-Core base directory hint.
+
+|`YE_PAGER`
+|Command template used to view files.  Use `%s` where the filename should be inserted.
+
+|`PAGER`
+|Fallback pager when `YE_PAGER` is not set.
+
+|`YE_EDITOR`
+|Command used to edit files.
+
+|`EDITOR`
+|Fallback editor when `YE_EDITOR` is not set.
+|===
 
 For the editor, `ye` first checks if `YE_EDITOR` is set in the
 environment.  If it is not set, it checks the `EDITOR` environment
-variable.  If it is not set, it resorts to `emacs`.  If `emacs` cannot
-be found, you'll get an error.
+variable.  If neither is set, it searches for a usable terminal editor
+in this order: `emacs -nw`, `mg`, `zile`, `qemacs`, `nano`, `vim`,
+and `vi`.  If no editor is found, `ye` prints an error.
 
 For the pager, `ye` first checks if `YE_PAGER` is set in the
 environment.  If it is not set, it checks the `PAGER` environment
@@ -934,12 +1196,63 @@ cannot be found, you'll get an error.
 
 `%s` can be used as a placeholder for the file to act upon.
 
+`ye` stores cached documentation and shell plumbing files below
+`$HOME/.ye`.
+
+
+== Compatibility with current Yocto releases
+
+`ye` is intended to work with both older O.S. Systems Yocto layouts
+and current Yocto Project layouts.  The compatibility-sensitive areas
+are source/layer discovery, sysroot discovery, and package archive
+format support.
+
+Kirkstone 4.0 LTS::
+  Compatible for the tested surfaces.  The older `tmp/sysroots`
+  layout remains supported as a fallback.
+
+Scarthgap 5.0 LTS::
+  Compatible for source discovery, workdir lookup, sysroot lookup, and
+  package discovery.  IPK zstd payloads are supported through
+  `data.tar.zst`.
+
+Wrynose 6.0 LTS::
+  Compatible for the tested surfaces in a Wrynose build tree using
+  `PACKAGE_CLASSES = "package_ipk"`.  `ye` correctly handles
+  configured layers from single-quoted `BBLAYERS`, per-recipe
+  sysroots, `tmp/sysroots-components`, and zstd-compressed IPK
+  payloads.
+
+When migrating between Yocto releases, pay special attention to:
+
+* package payload compression (`data.tar.zst` for modern IPK output);
+* source layout changes around `WORKDIR` and `UNPACKDIR`;
+* whether the build setup still creates `conf/bblayers.conf`;
+* whether package, image, sysroot, and buildhistory directories exist
+  in the expected build directory.
+
 
 == Requirements
 
-A Python 3 installation and a Yocto Project build tree.  `ye` supports
+A Python 3 installation and a Yocto Project build tree are required.
+Use the Python version supported by your Yocto release.  `ye` supports
 both the legacy O.S. Systems `.repo`/`sources` layout and current
 Yocto layouts that expose layers through `conf/bblayers.conf`.
+
+Core host tools:
+
+* `git`
+* `grep`
+* `less` or another pager
+* a terminal editor for `ye edit`
+* `ar` and GNU `tar` for `.deb` and `.ipk` inspection
+* `zstd` or GNU `tar` with zstd support for modern `.ipk` payloads
+* `rpm` and `rpm2cpio` for RPM package inspection/extraction
+
+Optional host tools:
+
+* `repo`, for legacy repo-based workspace grep support
+* `buildhistory-diff`, for formatted buildhistory output
 
 For the `doc` command, the http://lxml.de/[lxml] module for Python is
 required.
@@ -947,12 +1260,80 @@ required.
 For the `cd` command, a Bourne-compatible shell is required.
 
 
+== Testing and validation
+
+The lightweight checks below are useful before changing `ye`:
+
+....
+$ python3 -m py_compile ye ye_compat.py bb-expand-vars.py format-command-lines.py setup-environment.d/ye.py
+$ bash -n ye-cd
+$ bash -n ye-completion.sh
+....
+
+Package archive selection is covered by `test_ye_packages.py`:
+
+....
+$ python3 -B test_ye_packages.py
+....
+
+Useful smoke tests in a real build tree:
+
+....
+$ ye --help
+$ ye plumbing topdir
+$ ye f -e layer.conf
+$ ye wd -e linux-yocto
+$ ye pf -e 'kernel_.*\.ipk'
+$ ye pi -e 'kernel_.*\.ipk'
+$ ye pv -e 'kernel-image.*\.ipk'
+$ ye sf stdio.h
+....
+
+Commands that call BitBake, such as `ye expand` and `ye plumbing x`,
+should be treated as integration tests.  They need a working BitBake
+server and a valid build environment.
+
+
+== Troubleshooting
+
+`ye` searches too many files or files from unconfigured layers::
+  Check `conf/bblayers.conf` and `YE_SOURCE_DIRS`.  `ye` prefers
+  configured `BBLAYERS`; if parsing fails or no layer exists, it falls
+  back to broader source directories.
+
+`ERROR: Could not determine the Yocto Project's build directory.`::
+  Run from inside the build directory, set `BUILDDIR`, or source the
+  Yocto setup script again.
+
+`pkg-view` reports an unsupported compression type::
+  Confirm the package members with `ar t <package>`.  Supported
+  `.deb` and `.ipk` data/control archives are uncompressed tar, gzip,
+  xz, and zstd tar files.
+
+`pkg-extract` refuses to run because the output directory exists::
+  `ye` never clobbers extraction directories.  Remove or rename the
+  existing directory, or run the command from a scratch directory.
+
+`doc` cannot update documentation data::
+  The `doc` command needs Python `lxml` and network access when its
+  cache under `$HOME/.ye/doc-data` is missing or older than seven
+  days.
+
+`expand` or `plumbing x` cannot start BitBake::
+  Ensure the Yocto environment is sourced and that no incompatible
+  BitBake server is active for the same build directory.
+
+
 == Limitations
 
 Some `ye` commands use `bitbake` behind the scenes, and since
-`bitbake` doesn't support running multipl instances in parallel under
+`bitbake` doesn't support running multiple instances in parallel under
 the same build directory, some `ye` features may not work while you
 are using `bitbake`.
+
+`ye` is a navigation and inspection helper.  It does not replace
+BitBake, `devtool`, package managers, or release migration tools; it
+uses the build tree that those tools create.
 
 
 == License
