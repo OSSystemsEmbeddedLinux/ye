@@ -1,7 +1,31 @@
+import functools
 import glob
 import os
 import re
 import subprocess
+
+# Well-known sibling directory names that may hold Yocto layers/sources.
+LAYER_DIR_NAMES = ['sources', 'layers', 'poky', 'openembedded-core']
+
+# Upper bound on the number of passes used to resolve nested ${VAR}
+# references when expanding a bblayers.conf path.
+MAX_VAR_EXPANSION_PASSES = 8
+
+
+def layer_subdirs(root):
+    return [os.path.join(root, name) for name in LAYER_DIR_NAMES]
+
+
+def common_dir(dirs, require_dir=False):
+    try:
+        common = os.path.commonpath(dirs)
+    except ValueError:
+        return None
+    if not common or common == os.path.sep:
+        return None
+    if require_dir and not os.path.isdir(common):
+        return None
+    return os.path.realpath(common)
 
 
 def uniq(paths):
@@ -44,6 +68,7 @@ def is_program_available(program):
     return False
 
 
+@functools.lru_cache(maxsize=None)
 def get_builddir():
     builddir = os.environ.get('BUILDDIR')
     if builddir:
@@ -109,7 +134,7 @@ def strip_comment(line):
 
 def expand_bitbake_path(path, variables):
     value = os.path.expanduser(path)
-    for _ in range(8):
+    for _ in range(MAX_VAR_EXPANSION_PASSES):
         expanded = re.sub(r'\${([^}]+)}',
                           lambda m: variables.get(m.group(1),
                                                   os.environ.get(m.group(1), m.group(0))),
@@ -214,27 +239,16 @@ def fallback_source_dirs(builddir=None):
 
     builddir = builddir or get_builddir()
     if builddir:
-        parent = os.path.dirname(builddir)
-        candidates.extend([
-            os.path.join(parent, 'sources'),
-            os.path.join(parent, 'layers'),
-            os.path.join(parent, 'poky'),
-            os.path.join(parent, 'openembedded-core'),
-        ])
+        candidates.extend(layer_subdirs(os.path.dirname(builddir)))
 
-    root = find_upwards(os.getcwd(), ['sources', 'layers', 'poky',
-                                     'openembedded-core'])
+    root = find_upwards(os.getcwd(), LAYER_DIR_NAMES)
     if root:
-        candidates.extend([
-            os.path.join(root, 'sources'),
-            os.path.join(root, 'layers'),
-            os.path.join(root, 'poky'),
-            os.path.join(root, 'openembedded-core'),
-        ])
+        candidates.extend(layer_subdirs(root))
 
     return existing_dirs(candidates)
 
 
+@functools.lru_cache(maxsize=None)
 def source_dirs():
     env_dirs = os.environ.get('YE_SOURCE_DIRS')
     if env_dirs:
@@ -258,13 +272,7 @@ def source_root_dir():
     dirs = source_dirs()
     if not dirs:
         return None
-    try:
-        common = os.path.commonpath(dirs)
-        if common and common != os.path.sep and os.path.isdir(common):
-            return os.path.realpath(common)
-    except ValueError:
-        pass
-    return dirs[0]
+    return common_dir(dirs, require_dir=True) or dirs[0]
 
 
 def workspace_root():
@@ -278,18 +286,14 @@ def workspace_root():
         roots.append(builddir)
     roots.extend(source_dirs())
     if roots:
-        try:
-            common = os.path.commonpath(roots)
-            if common and common != os.path.sep:
-                return os.path.realpath(common)
-        except ValueError:
-            pass
+        common = common_dir(roots)
+        if common:
+            return common
 
     for env_name in ['PLATFORM_ROOT_DIR', 'YE_TOPDIR', 'OEROOT', 'COREBASE']:
         if os.environ.get(env_name):
             return os.path.realpath(os.path.abspath(os.environ[env_name]))
-    return find_upwards(os.getcwd(), ['sources', 'layers', 'poky',
-                                     'openembedded-core'])
+    return find_upwards(os.getcwd(), LAYER_DIR_NAMES)
 
 
 def find_git_root(path):

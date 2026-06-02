@@ -49,14 +49,6 @@ def die(msg):
     sys.stderr.write(msg + '\n')
     sys.exit(1)
 
-def is_program_available(program):
-    progpaths = os.environ['PATH'].split(':')
-    for dir in progpaths:
-        progpath = os.path.join(dir, program)
-        if os.path.isfile(progpath) and os.access(progpath, os.X_OK):
-            return True
-    return False
-
 YE_DIR = os.path.join(os.environ['HOME'], '.ye')
 
 EDITOR_ALTERNATIVES = [('emacs', '-nw'), 'mg', 'zile', 'qemacs', 'nano', 'vim', 'vi']
@@ -70,7 +62,7 @@ def find_editor():
             args = option[1]
         else:
             editor = option
-        if is_program_available(editor):
+        if ye_compat.is_program_available(editor):
             return '%s %s' % (editor, args)
     die('Could not find an editor.  Please, set the YE_EDITOR environment variable.')
 
@@ -281,17 +273,7 @@ def find(pattern, basedir, exact, actions):
             else:
                 file = results[0]
                 print(colorize(shorten_path(file), orig_pattern))
-            if len(actions) == 1:
-                actions[0][2](file)
-                return file
-            if shortcut:
-                for action in actions:
-                    if action[1] == shortcut:
-                        action[2](file)
-            else:
-                action = prompt_action([ (a[1], a[0]) for a in actions ])
-                actions[action][2](file)
-            return file
+            return apply_action(file, actions, shortcut)
     else:
         if len(results) == 1 and len(actions) == 1:
             actions[0][2](results[0])
@@ -455,7 +437,7 @@ def pkg_extract(pkg_file, file, from_control):
             print('Extracted to %s' % out_dir)
     elif ext == '.rpm':
         os.makedirs(out_dir)
-        if is_program_available('rpm2cpio'):
+        if ye_compat.is_program_available('rpm2cpio'):
             os.chdir(out_dir)
             status = os.system("rpm2cpio %s | cpio -id %s" % (pkg_file, file))
             if not status:
